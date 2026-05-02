@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* 背景色 - 米白色護眼設計 */
+    --background: 40 15% 97%;
+    --foreground: 230 25% 15%;
+
+    /* 卡片 - 純白與深色文字 */
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 15%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 15%;
+
+    /* 主色 - 深靛藍色（知識感）*/
+    --primary: 239 70% 58%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 239 65% 48%;
+    --primary-light: 239 70% 68%;
+
+    /* 輔助色 - 琥珀金色（書籍溫暖感）*/
+    --secondary: 38 92% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 38 92% 60%;
+
+    /* 柔和色調 */
+    --muted: 40 10% 92%;
+    --muted-foreground: 230 10% 45%;
+
+    /* 強調色 - 紫色漸層 */
+    --accent: 270 70% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    /* 刪除/警告色 */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* 邊框與輸入 */
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 239 70% 58%;
+
+    /* 圓角 */
+    --radius: 0.75rem;
+
+    /* 漸層 */
+    --gradient-primary: linear-gradient(135deg, hsl(239 70% 58%), hsl(270 70% 60%));
+    --gradient-warm: linear-gradient(135deg, hsl(38 92% 50%), hsl(30 100% 55%));
+    --gradient-subtle: linear-gradient(180deg, hsl(40 20% 98%), hsl(40 15% 97%));
+    
+    /* 陰影 */
+    --shadow-sm: 0 2px 4px hsl(239 70% 58% / 0.08);
+    --shadow-md: 0 4px 12px hsl(239 70% 58% / 0.12);
+    --shadow-lg: 0 8px 24px hsl(239 70% 58% / 0.15);
+    
+    /* 過渡動畫 */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    /* 深色模式 - 深藍夜色 */
+    --background: 230 25% 12%;
+    --foreground: 40 15% 95%;
+
+    --card: 230 20% 15%;
+    --card-foreground: 40 15% 95%;
+
+    --popover: 230 20% 15%;
+    --popover-foreground: 40 15% 95%;
+
+    --primary: 239 70% 65%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 239 65% 55%;
+    --primary-light: 239 70% 75%;
+
+    --secondary: 38 92% 55%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 38 92% 65%;
+
+    --muted: 230 15% 20%;
+    --muted-foreground: 40 10% 65%;
+
+    --accent: 270 70% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 230 15% 25%;
+    --input: 230 15% 25%;
+    --ring: 239 70% 65%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(239 70% 65%), hsl(270 70% 65%));
+    --gradient-warm: linear-gradient(135deg, hsl(38 92% 55%), hsl(30 100% 60%));
+    --gradient-subtle: linear-gradient(180deg, hsl(230 20% 18%), hsl(230 25% 12%));
+    
+    --shadow-sm: 0 2px 4px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

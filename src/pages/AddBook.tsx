@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { supabase } from "@/integrations/supabase/client"
+import { selfize, type Book } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,17 +33,11 @@ const AddBook = () => {
 
   const fetchBook = async () => {
     try {
-      const { data, error } = await supabase
-        .from("books")
-        .select("*")
-        .eq("id", id)
-        .single()
-
-      if (error) throw error
+      const data = await selfize.get<Book>("books", id!)
       setTitle(data.title)
-      setAuthor(data.author)
+      setAuthor(data.author || "")
       setTags(data.tags?.join(", ") || "")
-      setStatus(data.status as "available" | "lent_out")
+      setStatus(data.status)
       if (data.cover_url) {
         setCoverUrl(data.cover_url)
         setCoverPreview(data.cover_url)
@@ -101,12 +95,10 @@ const AddBook = () => {
       }
 
       if (isEditing) {
-        const { error } = await supabase.from("books").update(bookData).eq("id", id)
-        if (error) throw error
+        await selfize.update("books", id!, bookData)
         toast.success("書籍已更新")
       } else {
-        const { error } = await supabase.from("books").insert([bookData])
-        if (error) throw error
+        await selfize.create("books", bookData)
         toast.success("書籍已上架")
       }
 

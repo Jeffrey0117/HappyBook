@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/integrations/supabase/client'
+import { selfize, type Book, type Swap } from '@/lib/selfize'
 import { XP_RULES, BADGES, getLevelInfo, type BadgeDef } from '@/lib/game-config'
-import type { Book, Swap } from '@/integrations/supabase/types'
 
 export interface GameStats {
   xp: number
@@ -29,12 +28,12 @@ export function useGameStats(profileId: string | undefined): GameStats {
 
     const fetchData = async () => {
       const [booksRes, swapsRes] = await Promise.all([
-        supabase.from('books').select('*').eq('owner_id', profileId),
-        supabase.from('swaps').select('*').eq('from_user_id', profileId),
+        selfize.list<Book>('books', { owner_id: profileId, limit: '500' }),
+        selfize.list<Swap>('swaps', { lender_id: profileId, limit: '500' }),
       ])
 
-      setBooks(booksRes.data ?? [])
-      setSwaps((swapsRes.data as Swap[]) ?? [])
+      setBooks(booksRes.items)
+      setSwaps(swapsRes.items)
       setLoading(false)
     }
 

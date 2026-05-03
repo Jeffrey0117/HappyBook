@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { supabase } from "@/integrations/supabase/client"
+import { selfize, type Book, type Swap } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +13,6 @@ import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { useGameStats } from "@/hooks/use-game-stats"
-import type { Book } from "@/integrations/supabase/types"
 
 const MyShelf = () => {
   const navigate = useNavigate()
@@ -39,14 +38,12 @@ const MyShelf = () => {
   const fetchMyBooks = async () => {
     if (!profile) return
     try {
-      const { data, error } = await supabase
-        .from("books")
-        .select("*")
-        .eq("owner_id", profile.id)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      setBooks(data || [])
+      const { items } = await selfize.list<Book>("books", {
+        owner_id: profile.id,
+        sort: "-created_at",
+        limit: "500",
+      })
+      setBooks(items)
     } catch (error) {
       toast.error("無法載入書籍")
     } finally {
@@ -57,8 +54,7 @@ const MyShelf = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("確定要刪除這本書嗎？")) return
     try {
-      const { error } = await supabase.from("books").delete().eq("id", id)
-      if (error) throw error
+      await selfize.delete("books", id)
       setBooks(books.filter((b) => b.id !== id))
       toast.success("已刪除")
     } catch (error) {
@@ -70,23 +66,18 @@ const MyShelf = () => {
     if (!swapDialogBook || !profile) return
     setSwapLoading(true)
     try {
-      const { error: swapError } = await supabase.from("swaps").insert([{
+      await selfize.create("swaps", {
         book_id: swapDialogBook.id,
-        from_user_id: profile.id,
-        to_user_id: profile.id,
-        note: swapToName ? `換給 ${swapToName}${swapNote ? ` - ${swapNote}` : ''}` : swapNote || null,
-        status: 'active',
-      }])
-      if (swapError) throw swapError
+        lender_id: profile.id,
+        borrower_name: swapToName || "未知",
+        borrower_note: swapNote || null,
+        status: "active",
+      })
 
-      const { error: bookError } = await supabase
-        .from("books")
-        .update({ status: 'lent_out' as const })
-        .eq("id", swapDialogBook.id)
-      if (bookError) throw bookError
+      await selfize.update("books", swapDialogBook.id, { status: "lent_out" })
 
       setBooks(books.map((b) =>
-        b.id === swapDialogBook.id ? { ...b, status: 'lent_out' as const } : b
+        b.id === swapDialogBook.id ? { ...b, status: "lent_out" as const } : b
       ))
       setSwapDialogBook(null)
       setSwapToName("")
@@ -101,29 +92,24 @@ const MyShelf = () => {
 
   const handleReturn = async (book: Book) => {
     try {
-      const { data: activeSwap } = await supabase
-        .from("swaps")
-        .select("id")
-        .eq("book_id", book.id)
-        .eq("status", "active")
-        .order("swapped_at", { ascending: false })
-        .limit(1)
-        .single()
+      const { items: activeSwaps } = await selfize.list<Swap>("swaps", {
+        book_id: book.id,
+        status: "active",
+        sort: "-created_at",
+        limit: "1",
+      })
 
-      if (activeSwap) {
-        await supabase
-          .from("swaps")
-          .update({ status: 'returned' as const, returned_at: new Date().toISOString() })
-          .eq("id", activeSwap.id)
+      if (activeSwaps.length > 0) {
+        await selfize.update("swaps", activeSwaps[0].id, {
+          status: "returned",
+          returned_at: new Date().toISOString(),
+        })
       }
 
-      await supabase
-        .from("books")
-        .update({ status: 'available' as const })
-        .eq("id", book.id)
+      await selfize.update("books", book.id, { status: "available" })
 
       setBooks(books.map((b) =>
-        b.id === book.id ? { ...b, status: 'available' as const } : b
+        b.id === book.id ? { ...b, status: "available" as const } : b
       ))
       toast.success("已歸還")
     } catch (error) {

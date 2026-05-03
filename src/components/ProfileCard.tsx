@@ -1,7 +1,7 @@
 import { User, BookOpen, ArrowLeftRight, Award } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import type { Profile } from '@/integrations/supabase/types'
+import type { Profile } from '@/lib/selfize'
 import type { GameStats } from '@/hooks/use-game-stats'
 
 interface ProfileCardProps {
@@ -16,7 +16,7 @@ const ProfileCard = ({ profile, stats }: ProfileCardProps) => {
         {profile.avatar_url ? (
           <img
             src={profile.avatar_url}
-            alt={profile.name}
+            alt={profile.display_name}
             className="w-14 h-14 rounded-full border-2 border-primary/30"
           />
         ) : (
@@ -26,7 +26,7 @@ const ProfileCard = ({ profile, stats }: ProfileCardProps) => {
         )}
 
         <div className="flex-1">
-          <h2 className="text-lg font-bold">{profile.name}</h2>
+          <h2 className="text-lg font-bold">{profile.display_name}</h2>
           <p className="text-sm text-primary font-medium">
             Lv.{stats.level} {stats.title}
           </p>

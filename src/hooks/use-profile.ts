@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/integrations/supabase/client'
+import { selfize, type Profile } from '@/lib/selfize'
 import { useAuth } from './use-auth'
-import type { Profile } from '@/integrations/supabase/types'
 
 export function useProfile() {
   const { user, isAuthenticated } = useAuth()
@@ -22,43 +21,32 @@ export function useProfile() {
     if (!user) return
 
     try {
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('letmeuse_id', user.id)
-        .single()
+      const { items } = await selfize.list<Profile>('profiles', {
+        user_id: user.id,
+        limit: '1',
+      })
 
-      if (existing) {
+      if (items.length > 0) {
+        const existing = items[0]
         const needsUpdate =
-          existing.name !== user.displayName ||
+          existing.display_name !== user.displayName ||
           existing.avatar_url !== (user.avatar || null)
 
         if (needsUpdate) {
-          const { data: updated } = await supabase
-            .from('profiles')
-            .update({
-              name: user.displayName,
-              avatar_url: user.avatar || null,
-            })
-            .eq('id', existing.id)
-            .select()
-            .single()
-
-          setProfile(updated || existing)
+          const updated = await selfize.update<Profile>('profiles', existing.id, {
+            display_name: user.displayName,
+            avatar_url: user.avatar || null,
+          })
+          setProfile(updated)
         } else {
           setProfile(existing)
         }
       } else {
-        const { data: created } = await supabase
-          .from('profiles')
-          .insert({
-            letmeuse_id: user.id,
-            name: user.displayName,
-            avatar_url: user.avatar || null,
-          })
-          .select()
-          .single()
-
+        const created = await selfize.create<Profile>('profiles', {
+          user_id: user.id,
+          display_name: user.displayName,
+          avatar_url: user.avatar || null,
+        })
         setProfile(created)
       }
     } catch (error) {

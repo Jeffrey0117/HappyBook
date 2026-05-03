@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { supabase } from "@/integrations/supabase/client"
+import { selfize, type SwapExpanded } from "@/lib/selfize"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,23 +9,10 @@ import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 
-interface SwapRecord {
-  id: string
-  swapped_at: string
-  returned_at: string | null
-  status: 'active' | 'returned'
-  note: string | null
-  book_id: string
-  from_user_id: string
-  book: { title: string; author: string } | null
-  from_user: { name: string } | null
-  to_user: { name: string } | null
-}
-
 const SwapHistory = () => {
   const { isReady, isAuthenticated, login } = useAuth()
   const { profile } = useProfile()
-  const [swaps, setSwaps] = useState<SwapRecord[]>([])
+  const [swaps, setSwaps] = useState<SwapExpanded[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -39,19 +26,13 @@ const SwapHistory = () => {
   const fetchSwaps = async () => {
     if (!profile) return
     try {
-      const { data, error } = await supabase
-        .from("swaps")
-        .select(`
-          id, swapped_at, returned_at, status, note, book_id, from_user_id,
-          book:books(title, author),
-          from_user:profiles!swaps_from_user_id_fkey(name),
-          to_user:profiles!swaps_to_user_id_fkey(name)
-        `)
-        .or(`from_user_id.eq.${profile.id},to_user_id.eq.${profile.id}`)
-        .order("swapped_at", { ascending: false })
-
-      if (error) throw error
-      setSwaps((data as unknown as SwapRecord[]) || [])
+      const { items } = await selfize.list<SwapExpanded>("swaps", {
+        lender_id: profile.id,
+        sort: "-created_at",
+        limit: "500",
+        expand: "book_id,lender_id",
+      })
+      setSwaps(items)
     } catch (error) {
       toast.error("無法載入換書紀錄")
     } finally {
@@ -59,23 +40,18 @@ const SwapHistory = () => {
     }
   }
 
-  const handleReturn = async (swap: SwapRecord) => {
+  const handleReturn = async (swap: SwapExpanded) => {
     try {
-      const { error: swapError } = await supabase
-        .from("swaps")
-        .update({ status: 'returned' as const, returned_at: new Date().toISOString() })
-        .eq("id", swap.id)
-      if (swapError) throw swapError
+      await selfize.update("swaps", swap.id, {
+        status: "returned",
+        returned_at: new Date().toISOString(),
+      })
 
-      const { error: bookError } = await supabase
-        .from("books")
-        .update({ status: 'available' as const })
-        .eq("id", swap.book_id)
-      if (bookError) throw bookError
+      await selfize.update("books", swap.book_id, { status: "available" })
 
       setSwaps(swaps.map((s) =>
         s.id === swap.id
-          ? { ...s, status: 'returned' as const, returned_at: new Date().toISOString() }
+          ? { ...s, status: "returned" as const, returned_at: new Date().toISOString() }
           : s
       ))
       toast.success("已標記歸還")
@@ -120,7 +96,7 @@ const SwapHistory = () => {
                     <SwapCard
                       key={swap.id}
                       swap={swap}
-                      isOwner={swap.from_user_id === profile?.id}
+                      isOwner={true}
                       onReturn={() => handleReturn(swap)}
                     />
                   ))}
@@ -150,27 +126,31 @@ const SwapHistory = () => {
   )
 }
 
-function SwapCard({ swap, isOwner, onReturn }: { swap: SwapRecord; isOwner: boolean; onReturn?: () => void }) {
+function SwapCard({ swap, isOwner, onReturn }: { swap: SwapExpanded; isOwner: boolean; onReturn?: () => void }) {
+  const lenderName = swap.lender_id_expanded?.display_name || "我"
+  const bookTitle = swap.book_id_expanded?.title || "未知書籍"
+  const bookAuthor = swap.book_id_expanded?.author || ""
+
   return (
     <Card>
       <CardContent className="py-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium">{swap.from_user?.name}</span>
+              <span className="font-medium">{lenderName}</span>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{swap.to_user?.name}</span>
+              <span className="font-medium">{swap.borrower_name}</span>
               <Badge variant={swap.status === 'active' ? 'default' : 'secondary'} className="text-xs">
                 {swap.status === 'active' ? '換出中' : '已歸還'}
               </Badge>
             </div>
             <p className="text-lg font-bold mt-1">
-              {swap.book?.title}
-              <span className="text-sm font-normal text-muted-foreground ml-2">{swap.book?.author}</span>
+              {bookTitle}
+              {bookAuthor && <span className="text-sm font-normal text-muted-foreground ml-2">{bookAuthor}</span>}
             </p>
-            {swap.note && <p className="text-sm text-muted-foreground mt-1">{swap.note}</p>}
+            {swap.borrower_note && <p className="text-sm text-muted-foreground mt-1">{swap.borrower_note}</p>}
             <div className="flex gap-4 text-xs text-muted-foreground mt-2">
-              <span>換出 {new Date(swap.swapped_at).toLocaleDateString("zh-TW")}</span>
+              <span>換出 {new Date(swap.created_at).toLocaleDateString("zh-TW")}</span>
               {swap.returned_at && (
                 <span>歸還 {new Date(swap.returned_at).toLocaleDateString("zh-TW")}</span>
               )}

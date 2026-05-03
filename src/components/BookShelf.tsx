@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import BookSpine from './BookSpine'
 import BookDetailDialog from './BookDetailDialog'
-import type { Book } from '@/integrations/supabase/types'
+import type { Book } from '@/lib/selfize'
 
 interface BookShelfProps {
   books: Book[]

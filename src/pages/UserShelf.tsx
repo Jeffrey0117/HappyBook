@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { supabase } from "@/integrations/supabase/client"
+import { selfize, type Profile, type Book } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
 import { ArrowLeft, BookOpen } from "lucide-react"
 import { useGameStats } from "@/hooks/use-game-stats"
-import type { Profile, Book } from "@/integrations/supabase/types"
 
 const UserShelf = () => {
   const { id } = useParams()
@@ -23,23 +22,15 @@ const UserShelf = () => {
 
   const fetchUserData = async () => {
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", id)
-        .single()
-
-      if (profileError) throw profileError
+      const profileData = await selfize.get<Profile>("profiles", id!)
       setProfile(profileData)
 
-      const { data: booksData, error: booksError } = await supabase
-        .from("books")
-        .select("*")
-        .eq("owner_id", id)
-        .order("created_at", { ascending: false })
-
-      if (booksError) throw booksError
-      setBooks(booksData || [])
+      const { items } = await selfize.list<Book>("books", {
+        owner_id: id!,
+        sort: "-created_at",
+        limit: "500",
+      })
+      setBooks(items)
     } catch (error) {
       // silently fail
     } finally {
@@ -56,7 +47,7 @@ const UserShelf = () => {
             返回
           </Button>
           {profile && (
-            <h1 className="text-xl font-bold">{profile.name} 的書架</h1>
+            <h1 className="text-xl font-bold">{profile.display_name} 的書架</h1>
           )}
         </div>
       </header>

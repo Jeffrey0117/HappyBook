@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { supabase } from "@/integrations/supabase/client"
+import { selfize, type BookWithOwner } from "@/lib/selfize"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,18 +10,6 @@ import { BookCardSkeleton } from "@/components/ui/skeleton-loader"
 import { Search, BookOpen } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getLevelInfo } from "@/lib/game-config"
-
-interface BookWithOwner {
-  id: string
-  title: string
-  author: string
-  cover_url: string | null
-  tags: string[] | null
-  status: string
-  owner_id: string
-  created_at: string
-  profiles: { id: string; name: string; avatar_url: string | null } | null
-}
 
 const Browse = () => {
   const { login, logout, isAuthenticated } = useAuth()
@@ -39,18 +27,17 @@ const Browse = () => {
 
   const fetchBooks = async () => {
     try {
-      const { data, error } = await supabase
-        .from("books")
-        .select("*, profiles(id, name, avatar_url)")
-        .eq("status", "available")
-        .order("created_at", { ascending: false })
+      const { items } = await selfize.list<BookWithOwner>("books", {
+        status: "available",
+        sort: "-created_at",
+        limit: "500",
+        expand: "owner_id",
+      })
 
-      if (error) throw error
-      const booksData = (data as BookWithOwner[]) || []
-      setBooks(booksData)
+      setBooks(items)
 
       const counts: Record<string, number> = {}
-      for (const b of booksData) {
+      for (const b of items) {
         counts[b.owner_id] = (counts[b.owner_id] || 0) + 1
       }
       setOwnerBookCounts(counts)
@@ -81,7 +68,7 @@ const Browse = () => {
 
     const matchesSearch = q
       ? book.title.toLowerCase().includes(q) ||
-        book.author.toLowerCase().includes(q) ||
+        (book.author || "").toLowerCase().includes(q) ||
         (book.tags && book.tags.some((tag) => tag.toLowerCase().includes(q)))
       : true
 
@@ -176,7 +163,7 @@ const Browse = () => {
               <BookCard
                 key={book.id}
                 book={book}
-                ownerName={book.profiles?.name || "未知"}
+                ownerName={book.owner_id_expanded?.display_name || "未知"}
                 ownerLevel={ownerLevels[book.owner_id]}
                 showOwner
               />

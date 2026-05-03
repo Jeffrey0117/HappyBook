@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { BookMarked } from 'lucide-react'
-import type { Book } from '@/integrations/supabase/types'
+import type { Book } from '@/lib/selfize'
 
 interface BookDetailDialogProps {
   book: Book | null

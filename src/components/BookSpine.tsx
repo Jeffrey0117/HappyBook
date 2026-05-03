@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { getSpineColor } from '@/lib/game-config'
-import type { Book } from '@/integrations/supabase/types'
+import type { Book } from '@/lib/selfize'
 
 interface BookSpineProps {
   book: Book

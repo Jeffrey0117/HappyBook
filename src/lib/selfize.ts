@@ -20,6 +20,20 @@ function buildQuery(params?: Record<string, string>): string {
   return '?' + new URLSearchParams(params).toString()
 }
 
+function parseJsonFields<T>(record: any): T {
+  if (!record || typeof record !== 'object') return record
+  const result = { ...record }
+  for (const [key, value] of Object.entries(result)) {
+    if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
+      try { result[key] = JSON.parse(value) } catch {}
+    }
+    if (key.endsWith('_expanded') && value && typeof value === 'object') {
+      result[key] = parseJsonFields(value)
+    }
+  }
+  return result as T
+}
+
 export interface ListResult<T> {
   items: T[]
   total: number
@@ -28,12 +42,14 @@ export interface ListResult<T> {
 }
 
 export const selfize = {
-  list<T = any>(collection: string, params?: Record<string, string>): Promise<ListResult<T>> {
-    return request(`/api/collections/${collection}/records${buildQuery(params)}`)
+  async list<T = any>(collection: string, params?: Record<string, string>): Promise<ListResult<T>> {
+    const result = await request<ListResult<T>>(`/api/collections/${collection}/records${buildQuery(params)}`)
+    return { ...result, items: result.items.map(item => parseJsonFields<T>(item)) }
   },
 
-  get<T = any>(collection: string, id: string, params?: Record<string, string>): Promise<T> {
-    return request(`/api/collections/${collection}/records/${id}${buildQuery(params)}`)
+  async get<T = any>(collection: string, id: string, params?: Record<string, string>): Promise<T> {
+    const result = await request<T>(`/api/collections/${collection}/records/${id}${buildQuery(params)}`)
+    return parseJsonFields<T>(result)
   },
 
   create<T = any>(collection: string, data: Record<string, any>): Promise<T> {

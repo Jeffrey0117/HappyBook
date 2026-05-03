@@ -41,7 +41,7 @@ export type Database = {
           author: string
           cover_url: string | null
           tags: string[] | null
-          status: 'available' | 'swapped'
+          status: 'available' | 'lent_out'
           created_at: string
         }
         Insert: {
@@ -51,7 +51,7 @@ export type Database = {
           author: string
           cover_url?: string | null
           tags?: string[] | null
-          status?: 'available' | 'swapped'
+          status?: 'available' | 'lent_out'
           created_at?: string
         }
         Update: {
@@ -61,7 +61,7 @@ export type Database = {
           author?: string
           cover_url?: string | null
           tags?: string[] | null
-          status?: 'available' | 'swapped'
+          status?: 'available' | 'lent_out'
           created_at?: string
         }
         Relationships: [
@@ -82,6 +82,8 @@ export type Database = {
           to_user_id: string
           note: string | null
           swapped_at: string
+          status: 'active' | 'returned'
+          returned_at: string | null
         }
         Insert: {
           id?: string
@@ -90,6 +92,8 @@ export type Database = {
           to_user_id: string
           note?: string | null
           swapped_at?: string
+          status?: 'active' | 'returned'
+          returned_at?: string | null
         }
         Update: {
           id?: string
@@ -98,6 +102,8 @@ export type Database = {
           to_user_id?: string
           note?: string | null
           swapped_at?: string
+          status?: 'active' | 'returned'
+          returned_at?: string | null
         }
         Relationships: [
           {
@@ -131,7 +137,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      book_status: 'available' | 'swapped'
+      book_status: 'available' | 'lent_out'
     }
     CompositeTypes: {
       [_ in never]: never

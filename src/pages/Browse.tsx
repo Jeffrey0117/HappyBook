@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import BookCard from "@/components/BookCard"
 import { BookCardSkeleton } from "@/components/ui/skeleton-loader"
 import { Search, BookOpen } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { getLevelInfo } from "@/lib/game-config"
 
 interface BookWithOwner {
   id: string
@@ -23,13 +24,14 @@ interface BookWithOwner {
 }
 
 const Browse = () => {
-  const { user, login, logout, isAuthenticated } = useAuth()
+  const { login, logout, isAuthenticated } = useAuth()
   const [books, setBooks] = useState<BookWithOwner[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [ownerBookCounts, setOwnerBookCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     fetchBooks()
@@ -44,13 +46,30 @@ const Browse = () => {
         .order("created_at", { ascending: false })
 
       if (error) throw error
-      setBooks((data as BookWithOwner[]) || [])
+      const booksData = (data as BookWithOwner[]) || []
+      setBooks(booksData)
+
+      const counts: Record<string, number> = {}
+      for (const b of booksData) {
+        counts[b.owner_id] = (counts[b.owner_id] || 0) + 1
+      }
+      setOwnerBookCounts(counts)
     } catch (error) {
-      console.error("Failed to load books:", error)
+      // silently fail
     } finally {
       setLoading(false)
     }
   }
+
+  const ownerLevels = useMemo(() => {
+    const levels: Record<string, { level: number; title: string }> = {}
+    for (const [ownerId, count] of Object.entries(ownerBookCounts)) {
+      const xp = count * 10
+      const info = getLevelInfo(xp)
+      levels[ownerId] = { level: info.level, title: info.title }
+    }
+    return levels
+  }, [ownerBookCounts])
 
   const allTags = Array.from(
     new Set(books.flatMap((book) => book.tags || []))
@@ -158,6 +177,7 @@ const Browse = () => {
                 key={book.id}
                 book={book}
                 ownerName={book.profiles?.name || "未知"}
+                ownerLevel={ownerLevels[book.owner_id]}
                 showOwner
               />
             ))}

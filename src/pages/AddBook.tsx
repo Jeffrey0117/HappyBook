@@ -1,27 +1,29 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Loader2, Upload, X } from "lucide-react"
+import { ArrowLeft, Loader2, Upload, X, Camera } from "lucide-react"
 import { toast } from "sonner"
 import Navigation from "@/components/Navigation"
 import { useProfile } from "@/hooks/use-profile"
+import { uploadCoverPhoto } from "@/lib/upload"
 
 const AddBook = () => {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEditing = !!id
   const { profile } = useProfile()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [title, setTitle] = useState("")
   const [author, setAuthor] = useState("")
   const [tags, setTags] = useState("")
-  const [status, setStatus] = useState<"available" | "swapped">("available")
+  const [status, setStatus] = useState<"available" | "lent_out">("available")
   const [coverUrl, setCoverUrl] = useState("")
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
 
@@ -41,7 +43,7 @@ const AddBook = () => {
       setTitle(data.title)
       setAuthor(data.author)
       setTags(data.tags?.join(", ") || "")
-      setStatus(data.status as "available" | "swapped")
+      setStatus(data.status as "available" | "lent_out")
       if (data.cover_url) {
         setCoverUrl(data.cover_url)
         setCoverPreview(data.cover_url)
@@ -49,6 +51,29 @@ const AddBook = () => {
     } catch (error) {
       toast.error("無法載入書籍資料")
       navigate("/my")
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const localPreview = URL.createObjectURL(file)
+    setCoverPreview(localPreview)
+    setUploading(true)
+
+    try {
+      const url = await uploadCoverPhoto(file)
+      setCoverUrl(url)
+      setCoverPreview(url)
+      toast.success("封面已上傳")
+    } catch (error: any) {
+      toast.error(error.message || "上傳失敗")
+      setCoverPreview(null)
+    } finally {
+      setUploading(false)
+      URL.revokeObjectURL(localPreview)
+      if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
@@ -109,7 +134,7 @@ const AddBook = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label>封面圖片</Label>
-                <div className="flex items-center gap-4">
+                <div className="flex items-start gap-4">
                   {coverPreview ? (
                     <div className="relative">
                       <img
@@ -126,20 +151,49 @@ const AddBook = () => {
                       >
                         <X className="h-4 w-4" />
                       </Button>
+                      {uploading && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-white" />
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="w-32 h-48 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center">
-                      <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                      <span className="text-sm text-muted-foreground">無封面</span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-32 h-48 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer"
+                    >
+                      <Camera className="h-8 w-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">拍照上傳</span>
+                    </button>
                   )}
-                  <Input
-                    value={coverUrl}
-                    onChange={(e) => { setCoverUrl(e.target.value); setCoverPreview(e.target.value) }}
-                    placeholder="輸入封面圖片網址"
-                    className="flex-1"
-                  />
+                  <div className="flex-1 space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploading ? "上傳中..." : "選擇照片"}
+                    </Button>
+                    <Input
+                      value={coverUrl}
+                      onChange={(e) => { setCoverUrl(e.target.value); setCoverPreview(e.target.value) }}
+                      placeholder="或輸入封面圖片網址"
+                    />
+                  </div>
                 </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
               </div>
 
               <div className="space-y-2">
@@ -157,18 +211,7 @@ const AddBook = () => {
                 <Input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="小說, 心理學, 商業 (以逗號分隔)" />
               </div>
 
-              <div className="space-y-2">
-                <Label>狀態</Label>
-                <Select value={status} onValueChange={(v: "available" | "swapped") => setStatus(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">可換</SelectItem>
-                    <SelectItem value="swapped">已換出</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || uploading}>
                 {loading ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />處理中...</>
                 ) : (

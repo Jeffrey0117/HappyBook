@@ -14,11 +14,12 @@ interface BookCardProps {
     owner_id: string
   }
   ownerName?: string
+  ownerLevel?: { level: number; title: string }
   showOwner?: boolean
   actions?: React.ReactNode
 }
 
-const BookCard = ({ book, ownerName, showOwner = false, actions }: BookCardProps) => {
+const BookCard = ({ book, ownerName, ownerLevel, showOwner = false, actions }: BookCardProps) => {
   return (
     <Card className="group hover:shadow-md transition-all duration-300 hover:scale-[1.02]">
       <CardHeader className="pb-3">
@@ -43,7 +44,7 @@ const BookCard = ({ book, ownerName, showOwner = false, actions }: BookCardProps
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <Badge variant={book.status === "available" ? "default" : "secondary"}>
-            {book.status === "available" ? "可換" : "已換出"}
+            {book.status === "available" ? "可換" : "換出中"}
           </Badge>
           {showOwner && ownerName && (
             <Link
@@ -52,6 +53,11 @@ const BookCard = ({ book, ownerName, showOwner = false, actions }: BookCardProps
             >
               <User className="h-3 w-3" />
               {ownerName}
+              {ownerLevel && (
+                <span className="text-xs text-primary font-medium ml-1">
+                  Lv.{ownerLevel.level}
+                </span>
+              )}
             </Link>
           )}
         </div>

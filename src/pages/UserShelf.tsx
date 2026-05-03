@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
-import BookCard from "@/components/BookCard"
-import { BookCardSkeleton } from "@/components/ui/skeleton-loader"
-import { ArrowLeft, BookOpen, User } from "lucide-react"
+import BookShelf from "@/components/BookShelf"
+import ProfileCard from "@/components/ProfileCard"
+import { ArrowLeft, BookOpen } from "lucide-react"
+import { useGameStats } from "@/hooks/use-game-stats"
 import type { Profile, Book } from "@/integrations/supabase/types"
 
 const UserShelf = () => {
@@ -14,6 +15,7 @@ const UserShelf = () => {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
+  const stats = useGameStats(id)
 
   useEffect(() => {
     fetchUserData()
@@ -39,14 +41,11 @@ const UserShelf = () => {
       if (booksError) throw booksError
       setBooks(booksData || [])
     } catch (error) {
-      console.error("Failed to load user:", error)
+      // silently fail
     } finally {
       setLoading(false)
     }
   }
-
-  const availableBooks = books.filter((b) => b.status === "available")
-  const swappedBooks = books.filter((b) => b.status === "swapped")
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
@@ -57,41 +56,25 @@ const UserShelf = () => {
             返回
           </Button>
           {profile && (
-            <div className="flex items-center gap-3">
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.name} className="w-10 h-10 rounded-full" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                </div>
-              )}
-              <div>
-                <h1 className="text-xl font-bold">{profile.name} 的書架</h1>
-                <p className="text-sm text-muted-foreground">
-                  {availableBooks.length} 本可換 · {swappedBooks.length} 本已換出
-                </p>
-              </div>
-            </div>
+            <h1 className="text-xl font-bold">{profile.name} 的書架</h1>
           )}
         </div>
       </header>
 
-      <main className="max-w-screen-xl mx-auto px-4 py-6">
+      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
+        {profile && !stats.loading && (
+          <ProfileCard profile={profile} stats={stats} />
+        )}
+
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => <BookCardSkeleton key={i} />)}
-          </div>
+          <div className="h-60 bg-muted animate-pulse rounded-xl" />
         ) : books.length === 0 ? (
           <div className="text-center py-16">
             <BookOpen className="h-20 w-20 mx-auto text-muted-foreground/50" />
             <p className="text-xl font-medium text-muted-foreground mt-4">這個人還沒上架任何書</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {books.map((book) => (
-              <BookCard key={book.id} book={book} />
-            ))}
-          </div>
+          <BookShelf books={books} />
         )}
       </main>
 

@@ -1,71 +1,85 @@
-# HappyBook (EpicTake)
+# HappyBook
 
-Film & series review + tracking community. Browse films, build your shelf, rate/review, read a blog. (package name `happybook`; originated as a book-swap site, now film-focused.)
+Book swap community web app — list your books, browse others' shelves, request swaps, lend/return, write reviews, and earn XP. Traditional-Chinese UI.
 
 ## Stack
-- React 18 + Vite 5 + TypeScript (strict) — SPA, `@vitejs/plugin-react-swc`
-- UI: shadcn/ui (Radix primitives) + Tailwind CSS + `tailwindcss-animate`, lucide-react icons
+- React 18 + TypeScript (strict) + Vite 5 (`@vitejs/plugin-react-swc`)
 - Routing: react-router-dom v6 (`BrowserRouter`)
-- Data: @tanstack/react-query + Supabase (`@supabase/supabase-js`)
+- Data fetching: `@tanstack/react-query` v5
+- UI: shadcn/ui (Radix primitives) + Tailwind CSS 3 + lucide-react icons
 - Forms/validation: react-hook-form + zod
-- Auth: LetMeUse (script-injected `window.letmeuse`, no npm dep) — see `src/hooks/use-auth.ts`
-- Image uploads: client compress (canvas) → POST to `duk.tw` (`src/lib/upload.ts`)
-- Testing: Vitest + Testing Library (jsdom); Playwright E2E
-- Build tooling note: dev/build via Vite; `bun.lockb` present (bun installable) but README uses npm
+- Toasts: sonner + Radix toast; Notifications: `Toaster` + `Sonner`
+- Backend (data): **Selfize** — a PocketBase-style REST collections API (`src/lib/selfize.ts`). NOT Supabase.
+- Auth: **LetMeUse** — injected `window.letmeuse` global, wrapped by `useAuth()` (`src/hooks/use-auth.ts`)
+- Image uploads: client-side canvas compression → POST to `duk.tw` (`src/lib/upload.ts`)
+- Tests: Vitest + Testing Library (jsdom); Playwright for E2E
+- Tooling: ESLint 9 (flat config), lovable-tagger (dev-only Vite plugin)
 
 ## Directory structure
 ```
 src/
-  main.tsx          ← entry, mounts <App/>
-  App.tsx           ← QueryClient + Router; all routes defined here
-  pages/            ← route components (Browse, MyShelf, UserShelf, AddBook,
-                      WriteReview, Reviews, UserReviews, FilmDetail,
-                      Blog, BlogPost, BlogShow, Terms, Rules, NotFound)
-  components/        ← Navigation, Footer, BookCard, BookShelf, BookSpine,
-                      BookDetailDialog, ProfileCard
-  components/ui/     ← shadcn/ui primitives (generated; avoid hand-editing)
-  hooks/            ← use-auth, use-profile, use-my-films, use-game-stats,
-                      use-mobile, use-toast
-  lib/              ← selfize, game-config, blog-data, upload, utils (cn helper)
-  integrations/supabase/ ← client.ts (generated), types.ts (DB types)
-  test/setup.ts     ← Vitest setup
-supabase/
-  config.toml
-  migrations/       ← SQL schema (profiles, books/films, swaps; gamification)
-scripts/            ← seed.mjs, fix-covers.mjs, check-covers.mjs (Node data scripts)
-docs/superpowers/   ← design specs + implementation plans
-public/  dist/      ← static assets / build output
+  main.tsx            ← entry, mounts <App/>
+  App.tsx             ← providers + all routes
+  pages/              ← route screens (Browse, MyShelf, AddBook, SwapInbox,
+                        SwapDetail, SwapWall, BookDetail, Reviews, WriteReview,
+                        UserShelf, UserReviews, Terms, Rules, NotFound, ...)
+  components/         ← feature components (BookCard, BookShelf, BookSpine,
+                        SwapCard, SwapRequestDialog, ProfileCard, Navigation, ...)
+  components/ui/      ← shadcn/ui primitives (generated; avoid hand-editing)
+  hooks/             ← use-auth, use-profile, use-my-books, use-swap-requests,
+                        use-game-stats, use-onboarding, use-toast, use-mobile
+  lib/               ← selfize (API client + types), upload, game-config, utils
+  integrations/supabase/ ← LEGACY supabase client (unused by app code)
+  test/setup.ts      ← Vitest setup
+supabase/migrations/ ← LEGACY SQL schema (superseded by Selfize collections)
+docs/                ← design specs
+public/ , dist/      ← static assets / build output
 ```
 
 ## Key concepts
-- **Routing**: All routes are declared in `src/App.tsx`. Key paths: `/` (Browse), `/my` (MyShelf), `/my/add`, `/my/edit/:id`, `/my/review/:bookId`, `/film/:title`, `/reviews`, `/blog/:slug`.
-- **Auth (LetMeUse)**: No Supabase Auth UI. `window.letmeuse` is injected by an external script; `useAuth()` polls until ready and subscribes via `onAuthChange`. Users are mirrored into a `profiles` table keyed by `letmeuse_id`.
-- **Supabase data**: Public read + public write RLS policies — authorization is enforced client-side via LetMeUse, NOT in the database. Treat the DB as untrusted-writable. Env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
-- **Schema evolution**: `books` table holds film/series records (status `available` / `lent_out`); `swaps` track lending (`active` / `returned`); gamification migration adds stats. See `supabase/migrations/`.
-- **Images**: `uploadCoverPhoto()` compresses to max 1200px JPEG (q0.8) then uploads to `duk.tw`, returning a short URL stored in the DB.
-- **Path alias**: `@/` → `src/` (configured in vite + tsconfig).
-- **Dev server**: runs on port **8080** (not Vite default 5173); Playwright `baseURL` matches.
-- **lovable-tagger**: dev-only Vite plugin (component tagging); active only in development mode.
+- **Data layer = Selfize**: `selfize.list/get/create/update/delete(collection, ...)`
+  hits `${VITE_SELFIZE_URL}/api/collections/<name>/records`. JSON string fields and
+  `*_expanded` relations are auto-parsed. Collections: profiles, books, swaps,
+  swap_requests, reviews (see typed interfaces in `src/lib/selfize.ts`).
+- **Auth = LetMeUse**: `window.letmeuse` global (login/logout/getToken/onAuthChange).
+  `useAuth()` polls until the global is ready, then subscribes to auth changes.
+- **Supabase is legacy/dead code**: `src/integrations/supabase/` and `supabase/migrations/`
+  are NOT used by current pages/hooks — all reads/writes go through Selfize. Treat the
+  SQL schema only as historical reference for the data model.
+- **Swap flow**: book `status` is `available | lent_out | swapping | swapped`.
+  `SwapRequest` lifecycle: `pending → accepted → completed` (or `rejected/cancelled`),
+  with photo confirmation (`requester_photo_url` / `owner_photo_url`).
+- **Gamification**: XP rules + levels in `src/lib/game-config.ts` (e.g. ADD_BOOK=10,
+  SWAP_COMPLETE=40); Chinese level titles. Surfaced via `use-game-stats`.
+- **Bookshelf visualization**: `BookSpine` / `BookShelf` render books as colored spines;
+  spine color derived from first tag via `getSpineColor` (`game-config.ts`).
+- **Image uploads**: `uploadCoverPhoto()` compresses (max width 1200, JPEG 0.8) then
+  uploads to `https://duk.tw/api/upload`, returns short URL.
+- **Onboarding**: first-run dialog gated by `use-onboarding`.
 
 ## Commands
 ```bash
-npm install            # or: bun install
-npm run dev            # Vite dev server → http://localhost:8080
+npm install
+npm run dev            # Vite dev server on http://localhost:8080
 npm run build          # production build → dist/
 npm run build:dev      # build in development mode
-npm run preview        # preview the built dist/
-npm run lint           # eslint .
-npm test               # vitest (watch)
-npm run test:coverage  # vitest --coverage
-npm run test:ui        # vitest --ui
-npm run test:e2e       # playwright test (tests/ dir; auto-starts dev server)
+npm run preview        # preview built dist/
+npm run lint           # eslint
+npm run test           # vitest (watch)
+npm run test:coverage  # vitest with coverage
+npm run test:ui        # vitest UI
+npm run test:e2e       # Playwright (auto-starts dev server)
 npm run test:e2e:headed / test:e2e:ui
-node scripts/seed.mjs  # seed/fix data scripts (also fix-covers, check-covers)
 ```
 Deploy: `npm run build`, then ZIP `dist/` and upload to pipee.tw (per README).
 
-## Coding rules
-- Imports use the `@/` alias for `src/`.
-- `src/components/ui/*` are generated shadcn primitives — extend via composition, don't hand-edit.
-- `integrations/supabase/client.ts` and `types.ts` are generated ("Do not edit directly").
-- No test files exist in `src/`/`tests/` yet despite Vitest + Playwright config — add under those when writing tests.
+## Env vars (Vite `import.meta.env`)
+- `VITE_SELFIZE_URL` (default `https://selfize.isnowfriend.com`), `VITE_SELFIZE_TOKEN`
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (legacy, unused)
+
+## Coding rules / conventions
+- Path alias `@/` → `src/` (configured in `vite.config.ts` + tsconfig).
+- shadcn components live in `src/components/ui/` and are generated — prefer composition
+  over editing them directly (see `components.json`).
+- Keep server state in react-query; co-locate fetch logic in `src/hooks/use-*.ts`.
+- UI copy is Traditional Chinese.

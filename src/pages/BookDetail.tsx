@@ -1,0 +1,340 @@
+import { useState, useEffect } from "react"
+import { useParams, useNavigate, Link } from "react-router-dom"
+import {
+  selfize,
+  type BookWithOwner,
+  type Book,
+  type ReviewExpanded,
+} from "@/lib/selfize"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Navigation from "@/components/Navigation"
+import SwapRequestDialog from "@/components/SwapRequestDialog"
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  BookMarked,
+  Edit,
+  FileText,
+  User,
+} from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { useProfile } from "@/hooks/use-profile"
+import { useMyBooks } from "@/hooks/use-my-books"
+import { useOnboarding } from "@/hooks/use-onboarding"
+import { useSwapRequests } from "@/hooks/use-swap-requests"
+import { getLevelInfo } from "@/lib/game-config"
+import { toast } from "sonner"
+import ReactMarkdown from "react-markdown"
+
+const BookDetail = () => {
+  const { title } = useParams<{ title: string }>()
+  const navigate = useNavigate()
+  const decodedTitle = title ? decodeURIComponent(title) : ""
+
+  const { login, isAuthenticated } = useAuth()
+  const { profile } = useProfile()
+  const { availableBooks: myAvailableBooks, books: myAllBooks } = useMyBooks(profile?.id)
+  const { isOnboarded } = useOnboarding(profile, myAllBooks)
+  const { createRequest } = useSwapRequests(profile?.id)
+
+  const [books, setBooks] = useState<BookWithOwner[]>([])
+  const [reviews, setReviews] = useState<ReviewExpanded[]>([])
+  const [loading, setLoading] = useState(true)
+  const [reviewsLoading, setReviewsLoading] = useState(true)
+  const [swapTarget, setSwapTarget] = useState<BookWithOwner | null>(null)
+
+  useEffect(() => {
+    if (decodedTitle) {
+      fetchBooks()
+      fetchReviews()
+    }
+  }, [decodedTitle])
+
+  const fetchBooks = async () => {
+    try {
+      const { items } = await selfize.list<BookWithOwner>("books", {
+        status: "available",
+        sort: "-created_at",
+        limit: "500",
+        expand: "owner_id",
+      })
+
+      const matched = items.filter(
+        (b) => b.title.toLowerCase().trim() === decodedTitle.toLowerCase().trim()
+      )
+      setBooks(matched)
+    } catch (error) {
+      toast.error("無法載入書籍資料")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchReviews = async () => {
+    try {
+      const { items } = await selfize.list<ReviewExpanded>("reviews", {
+        book_title: decodedTitle,
+        sort: "-created_at",
+        limit: "50",
+        expand: "user_id",
+      })
+      setReviews(items)
+    } catch (error) {
+      // silently fail
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
+
+  const handleSwapRequest = (book: BookWithOwner) => {
+    if (!isAuthenticated) {
+      login()
+      return
+    }
+    if (!isOnboarded) {
+      toast.error("請先到書架完成個人設定")
+      return
+    }
+    if (myAvailableBooks.length === 0) {
+      toast.error("請先上架至少一本書")
+      return
+    }
+    setSwapTarget(book)
+  }
+
+  const handleSubmitRequest = async (data: {
+    requester_book_id: string
+    message?: string
+  }) => {
+    if (!profile || !swapTarget) return
+    try {
+      await createRequest({
+        requester_id: profile.id,
+        requester_book_id: data.requester_book_id,
+        owner_id: swapTarget.owner_id,
+        owner_book_id: swapTarget.id,
+        message: data.message,
+      })
+      toast.success("換書請求已送出！")
+    } catch (error) {
+      toast.error("送出失敗，請重試")
+      throw error
+    }
+  }
+
+  const coverUrl = books.find((b) => b.cover_url)?.cover_url || null
+  const author = books.find((b) => b.author)?.author || null
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString("zh-TW", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
+      <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border shadow-sm">
+        <div className="max-w-screen-xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-xl font-bold truncate">{decodedTitle}</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-8">
+        {loading ? (
+          <div className="space-y-4">
+            <div className="h-48 bg-muted animate-pulse rounded-xl" />
+            <div className="h-32 bg-muted animate-pulse rounded-xl" />
+          </div>
+        ) : (
+          <>
+            {/* Book info header */}
+            <section className="flex gap-4 items-start">
+              {coverUrl ? (
+                <img
+                  src={coverUrl}
+                  alt={decodedTitle}
+                  className="w-24 h-32 object-cover rounded-lg shadow-md flex-shrink-0"
+                />
+              ) : (
+                <div className="w-24 h-32 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                  <BookMarked className="h-8 w-8 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0 space-y-2">
+                <h2 className="text-2xl font-bold">{decodedTitle}</h2>
+                {author && (
+                  <p className="text-muted-foreground">{author}</p>
+                )}
+                <Badge variant="default" className="gap-1">
+                  {books.length} 人擁有
+                </Badge>
+              </div>
+            </section>
+
+            {/* Owners section */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold">擁有者</h3>
+              {books.length === 0 ? (
+                <p className="text-muted-foreground">目前無人擁有此書</p>
+              ) : (
+                <div className="space-y-3">
+                  {books.map((book) => {
+                    const ownerProfile = book.owner_id_expanded
+                    const isOwnBook = book.owner_id === profile?.id
+                    const bookCount = books.filter(
+                      (b) => b.owner_id === book.owner_id
+                    ).length
+                    const xp = bookCount * 10
+                    const levelInfo = getLevelInfo(xp)
+
+                    return (
+                      <Card key={book.id}>
+                        <CardContent className="p-4 flex items-center gap-3">
+                          <Link to={`/user/${book.owner_id}`}>
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage
+                                src={ownerProfile?.avatar_url || undefined}
+                              />
+                              <AvatarFallback>
+                                <User className="h-4 w-4" />
+                              </AvatarFallback>
+                            </Avatar>
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              to={`/user/${book.owner_id}`}
+                              className="font-medium text-sm hover:text-primary transition-colors truncate block"
+                            >
+                              {ownerProfile?.display_name || "未知"}
+                            </Link>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>Lv.{levelInfo.level} {levelInfo.title}</span>
+                              {book.condition && (
+                                <>
+                                  <span>·</span>
+                                  <span>書況：{book.condition}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {isOwnBook ? (
+                            <div className="flex gap-2 flex-shrink-0">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/my/edit/${book.id}`)}
+                              >
+                                <Edit className="h-3 w-3 mr-1" />
+                                編輯
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/my/review/${book.id}`)}
+                              >
+                                <FileText className="h-3 w-3 mr-1" />
+                                寫心得
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSwapRequest(book)}
+                              className="flex-shrink-0"
+                            >
+                              <ArrowLeftRight className="h-3 w-3 mr-1" />
+                              跟他換
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Reviews section */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold">心得</h3>
+              {reviewsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-24 bg-muted animate-pulse rounded-xl"
+                    />
+                  ))}
+                </div>
+              ) : reviews.length === 0 ? (
+                <p className="text-muted-foreground">還沒有人寫心得</p>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <Card key={review.id}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          {review.user_id_expanded && (
+                            <Link
+                              to={`/reviews/user/${review.user_id}`}
+                              className="flex items-center gap-2"
+                            >
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage
+                                  src={
+                                    review.user_id_expanded.avatar_url ||
+                                    undefined
+                                  }
+                                />
+                                <AvatarFallback>
+                                  <User className="h-3 w-3" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium hover:text-primary transition-colors">
+                                {review.user_id_expanded.display_name}
+                              </span>
+                            </Link>
+                          )}
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatDate(review.created_at)}
+                          </span>
+                        </div>
+                        <div className="prose-review text-sm">
+                          <ReactMarkdown>{review.content}</ReactMarkdown>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </main>
+
+      <SwapRequestDialog
+        open={!!swapTarget}
+        onClose={() => setSwapTarget(null)}
+        targetBook={swapTarget}
+        myBooks={myAvailableBooks}
+        onSubmit={handleSubmitRequest}
+      />
+
+      <Navigation />
+    </div>
+  )
+}
+
+export default BookDetail

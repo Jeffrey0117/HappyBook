@@ -1,39 +1,32 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { selfize, type Book, type Swap } from "@/lib/selfize"
+import { selfize, type Book } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import Navigation from "@/components/Navigation"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
-import { Plus, BookOpen, Trash2, Edit, ArrowLeftRight, Undo2, Loader2 } from "lucide-react"
+import OnboardingDialog from "@/components/OnboardingDialog"
+import { Plus, BookOpen, Trash2, Edit, PenLine, LogIn } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { useGameStats } from "@/hooks/use-game-stats"
+import { useOnboarding } from "@/hooks/use-onboarding"
+import { Badge } from "@/components/ui/badge"
 
 const MyShelf = () => {
   const navigate = useNavigate()
   const { isAuthenticated, isReady, login } = useAuth()
-  const { profile, loading: profileLoading } = useProfile()
+  const { profile, loading: profileLoading, updateProfile } = useProfile()
   const stats = useGameStats(profile?.id)
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [swapDialogBook, setSwapDialogBook] = useState<Book | null>(null)
-  const [swapToName, setSwapToName] = useState("")
-  const [swapNote, setSwapNote] = useState("")
-  const [swapLoading, setSwapLoading] = useState(false)
+  const { hasContact } = useOnboarding(profile, books)
 
   useEffect(() => {
-    if (isReady && !isAuthenticated) {
-      login()
-      return
-    }
     if (profile) fetchMyBooks()
-  }, [profile, isReady, isAuthenticated])
+  }, [profile])
 
   const fetchMyBooks = async () => {
     if (!profile) return
@@ -62,62 +55,18 @@ const MyShelf = () => {
     }
   }
 
-  const handleLendOut = async () => {
-    if (!swapDialogBook || !profile) return
-    setSwapLoading(true)
+  const handleOnboardingComplete = async (data: { contact_type: 'ig' | 'line'; contact_id: string; city: string }) => {
+    if (!profile) return
     try {
-      await selfize.create("swaps", {
-        book_id: swapDialogBook.id,
-        lender_id: profile.id,
-        borrower_name: swapToName || "未知",
-        borrower_note: swapNote || null,
-        status: "active",
-      })
-
-      await selfize.update("books", swapDialogBook.id, { status: "lent_out" })
-
-      setBooks(books.map((b) =>
-        b.id === swapDialogBook.id ? { ...b, status: "lent_out" as const } : b
-      ))
-      setSwapDialogBook(null)
-      setSwapToName("")
-      setSwapNote("")
-      toast.success("已記錄換出")
+      await updateProfile(data)
+      toast.success('設定完成！')
     } catch (error) {
-      toast.error("操作失敗")
-    } finally {
-      setSwapLoading(false)
+      toast.error('儲存失敗，請重試')
+      throw error
     }
   }
 
-  const handleReturn = async (book: Book) => {
-    try {
-      const { items: activeSwaps } = await selfize.list<Swap>("swaps", {
-        book_id: book.id,
-        status: "active",
-        sort: "-created_at",
-        limit: "1",
-      })
-
-      if (activeSwaps.length > 0) {
-        await selfize.update("swaps", activeSwaps[0].id, {
-          status: "returned",
-          returned_at: new Date().toISOString(),
-        })
-      }
-
-      await selfize.update("books", book.id, { status: "available" })
-
-      setBooks(books.map((b) =>
-        b.id === book.id ? { ...b, status: "available" as const } : b
-      ))
-      toast.success("已歸還")
-    } catch (error) {
-      toast.error("操作失敗")
-    }
-  }
-
-  if (!isReady || profileLoading) {
+  if (!isReady) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
         <div className="max-w-screen-xl mx-auto px-4 py-6">
@@ -126,6 +75,43 @@ const MyShelf = () => {
         <Navigation />
       </div>
     )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 px-4">
+          <LogIn className="h-12 w-12 text-muted-foreground/50" />
+          <p className="text-lg text-muted-foreground">請先登入以管理書架</p>
+          <Button onClick={() => login()}>登入 / 註冊</Button>
+        </div>
+        <Navigation />
+      </div>
+    )
+  }
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
+        <div className="max-w-screen-xl mx-auto px-4 py-6">
+          <div className="h-40 bg-muted animate-pulse rounded-xl mt-16" />
+        </div>
+        <Navigation />
+      </div>
+    )
+  }
+
+  const getBookStatusBadge = (status: Book['status']) => {
+    switch (status) {
+      case 'swapping':
+        return <Badge variant="secondary" className="bg-amber-100 text-amber-700">交換中</Badge>
+      case 'swapped':
+        return <Badge variant="secondary" className="bg-green-100 text-green-700">已換出</Badge>
+      case 'lent_out':
+        return <Badge variant="secondary">借出中</Badge>
+      default:
+        return null
+    }
   }
 
   return (
@@ -162,67 +148,32 @@ const MyShelf = () => {
           <BookShelf
             books={books}
             actions={(book) => (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                {getBookStatusBadge(book.status)}
+                <Button variant="outline" size="sm" onClick={() => navigate(`/my/review/${book.id}`)}>
+                  <PenLine className="h-3 w-3 mr-1" />
+                  寫心得
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => navigate(`/my/edit/${book.id}`)}>
                   <Edit className="h-3 w-3 mr-1" />
                   編輯
                 </Button>
-                {book.status === 'available' ? (
-                  <Button variant="outline" size="sm" onClick={() => setSwapDialogBook(book)}>
-                    <ArrowLeftRight className="h-3 w-3 mr-1" />
-                    記錄換出
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => handleReturn(book)}>
-                    <Undo2 className="h-3 w-3 mr-1" />
-                    已歸還
+                {book.status === 'available' && (
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(book.id)}>
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    刪除
                   </Button>
                 )}
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(book.id)}>
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  刪除
-                </Button>
               </div>
             )}
           />
         )}
       </main>
 
-      <Dialog open={!!swapDialogBook} onOpenChange={(open) => { if (!open) setSwapDialogBook(null) }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>記錄換出：{swapDialogBook?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>換給誰</Label>
-              <Input
-                value={swapToName}
-                onChange={(e) => setSwapToName(e.target.value)}
-                placeholder="對方名字（選填）"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>備註</Label>
-              <Input
-                value={swapNote}
-                onChange={(e) => setSwapNote(e.target.value)}
-                placeholder="備註（選填）"
-              />
-            </div>
-            <Button className="w-full" onClick={handleLendOut} disabled={swapLoading}>
-              {swapLoading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />處理中...</>
-              ) : (
-                <>
-                  <ArrowLeftRight className="mr-2 h-4 w-4" />
-                  確認換出
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <OnboardingDialog
+        open={!!(profile && !hasContact)}
+        onComplete={handleOnboardingComplete}
+      />
 
       <Navigation />
     </div>

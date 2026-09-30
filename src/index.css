@@ -117,3 +117,95 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Evernote-inspired prose for reviews */
+.prose-review {
+  line-height: 1.85;
+  color: hsl(var(--foreground));
+}
+
+.prose-review h1,
+.prose-review h2,
+.prose-review h3 {
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.4;
+}
+
+.prose-review h1 { font-size: 1.4em; }
+.prose-review h2 { font-size: 1.2em; }
+.prose-review h3 { font-size: 1.05em; }
+
+.prose-review p {
+  margin-bottom: 0.75em;
+}
+
+.prose-review strong {
+  font-weight: 600;
+}
+
+.prose-review em {
+  font-style: italic;
+}
+
+.prose-review blockquote {
+  border-left: 2px solid hsl(var(--muted-foreground) / 0.3);
+  padding-left: 1em;
+  margin: 1em 0;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.prose-review ul,
+.prose-review ol {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+
+.prose-review li {
+  margin-bottom: 0.25em;
+}
+
+.prose-review code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85em;
+  background: hsl(var(--muted));
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+}
+
+.prose-review pre {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85em;
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.prose-review pre code {
+  background: none;
+  padding: 0;
+}
+
+.prose-review a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-review hr {
+  border: none;
+  height: 1px;
+  background: hsl(var(--border));
+  margin: 2em 0;
+}
+
+.prose-review img {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 1em 0;
+}

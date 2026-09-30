@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { selfize, type Profile } from '@/lib/selfize'
 import { useAuth } from './use-auth'
 
@@ -56,5 +56,13 @@ export function useProfile() {
     }
   }
 
-  return { profile, loading }
+  const updateProfile = useCallback(async (data: Partial<Pick<Profile, 'contact_type' | 'contact_id' | 'city' | 'bio' | 'location'>>) => {
+    const current = profile
+    if (!current) throw new Error('Profile not loaded')
+    const updated = await selfize.update<Profile>('profiles', current.id, data)
+    setProfile(updated)
+    return updated
+  }, [profile])
+
+  return { profile, loading, updateProfile }
 }

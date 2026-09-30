@@ -26,10 +26,34 @@ const AddBook = () => {
   const [status, setStatus] = useState<"available" | "lent_out">("available")
   const [coverUrl, setCoverUrl] = useState("")
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [autoFilled, setAutoFilled] = useState(false)
 
   useEffect(() => {
     if (isEditing) fetchBook()
   }, [id])
+
+  // Auto-fill author + cover from existing books
+  useEffect(() => {
+    if (isEditing || !title.trim() || title.trim().length < 2) return
+    const timer = setTimeout(async () => {
+      try {
+        const { items } = await selfize.list<Book>("books", {
+          title: title.trim(),
+          limit: "1",
+        })
+        if (items.length > 0 && !author) {
+          const match = items[0]
+          if (match.author) setAuthor(match.author)
+          if (match.cover_url && !coverUrl) {
+            setCoverUrl(match.cover_url)
+            setCoverPreview(match.cover_url)
+          }
+          setAutoFilled(true)
+        }
+      } catch {}
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [title])
 
   const fetchBook = async () => {
     try {

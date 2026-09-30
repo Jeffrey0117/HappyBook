@@ -61,7 +61,7 @@ export const selfize = {
 
   update<T = any>(collection: string, id: string, data: Record<string, any>): Promise<T> {
     return request(`/api/collections/${collection}/records/${id}`, {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify(data),
     })
   },
@@ -82,6 +82,9 @@ export interface Profile {
   avatar_url: string | null
   bio: string | null
   location: string | null
+  contact_type: 'ig' | 'line' | null
+  contact_id: string | null
+  city: string | null
   created_at: string
   updated_at: string
 }
@@ -94,7 +97,7 @@ export interface Book {
   cover_url: string | null
   description: string | null
   tags: string[]
-  status: 'available' | 'lent_out'
+  status: 'available' | 'lent_out' | 'swapping' | 'swapped'
   condition: string
   created_at: string
   updated_at: string
@@ -119,4 +122,47 @@ export interface BookWithOwner extends Book {
 export interface SwapExpanded extends Swap {
   book_id_expanded?: Book
   lender_id_expanded?: Profile
+}
+
+// --- New swap request types ---
+
+export type SwapRequestStatus = 'pending' | 'accepted' | 'completed' | 'rejected' | 'cancelled'
+
+export interface SwapRequest {
+  id: string
+  requester_id: string
+  requester_book_id: string
+  owner_id: string
+  owner_book_id: string
+  message: string | null
+  status: SwapRequestStatus
+  requester_photo_url: string | null
+  owner_photo_url: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SwapRequestExpanded extends SwapRequest {
+  requester_id_expanded?: Profile
+  requester_book_id_expanded?: Book
+  owner_id_expanded?: Profile
+  owner_book_id_expanded?: Book
+}
+
+// --- Review types ---
+
+export interface Review {
+  id: string
+  user_id: string
+  book_id: string
+  book_title: string
+  book_author: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ReviewExpanded extends Review {
+  user_id_expanded?: Profile
 }

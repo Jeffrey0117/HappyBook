@@ -1,25 +1,80 @@
 import { useState, useEffect, useRef, useMemo } from "react"
-import { Link } from "react-router-dom"
-import { selfize, type BookWithOwner } from "@/lib/selfize"
+import { Link, useNavigate } from "react-router-dom"
+import { selfize, type BookWithOwner, type Book } from "@/lib/selfize"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
-import BookCard from "@/components/BookCard"
+import Footer from "@/components/Footer"
 import { BookCardSkeleton } from "@/components/ui/skeleton-loader"
-import { Search, BookOpen } from "lucide-react"
+import { Search, BookOpen, BookMarked, Edit, FileText, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { getLevelInfo } from "@/lib/game-config"
+import { useProfile } from "@/hooks/use-profile"
+import { useMyBooks } from "@/hooks/use-my-books"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+interface GroupedBook {
+  title: string
+  author: string | null
+  cover_url: string | null
+  tags: string[]
+  ownerCount: number
+  ownBookId: string | null
+}
+
+function groupBooksByTitle(
+  books: BookWithOwner[],
+  myProfileId: string | undefined
+): GroupedBook[] {
+  const groups = new Map<string, BookWithOwner[]>()
+
+  for (const book of books) {
+    const key = book.title.toLowerCase().trim()
+    const existing = groups.get(key)
+    if (existing) {
+      existing.push(book)
+    } else {
+      groups.set(key, [book])
+    }
+  }
+
+  const result: GroupedBook[] = []
+
+  for (const [, groupBooks] of groups) {
+    const coverUrl = groupBooks.find((b) => b.cover_url)?.cover_url || null
+    const author = groupBooks.find((b) => b.author)?.author || null
+    const uniqueOwners = new Set(groupBooks.map((b) => b.owner_id))
+    const allTags = Array.from(
+      new Set(groupBooks.flatMap((b) => b.tags || []))
+    )
+    const ownBook = myProfileId
+      ? groupBooks.find((b) => b.owner_id === myProfileId)
+      : undefined
+
+    result.push({
+      title: groupBooks[0].title,
+      author,
+      cover_url: coverUrl,
+      tags: allTags,
+      ownerCount: uniqueOwners.size,
+      ownBookId: ownBook?.id || null,
+    })
+  }
+
+  return result
+}
 
 const Browse = () => {
+  const navigate = useNavigate()
   const { login, logout, isAuthenticated } = useAuth()
+  const { profile } = useProfile()
+  const { books: myAllBooks } = useMyBooks(profile?.id)
   const [books, setBooks] = useState<BookWithOwner[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isSearching, setIsSearching] = useState(false)
-  const [ownerBookCounts, setOwnerBookCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     fetchBooks()
@@ -35,12 +90,6 @@ const Browse = () => {
       })
 
       setBooks(items)
-
-      const counts: Record<string, number> = {}
-      for (const b of items) {
-        counts[b.owner_id] = (counts[b.owner_id] || 0) + 1
-      }
-      setOwnerBookCounts(counts)
     } catch (error) {
       // silently fail
     } finally {
@@ -48,33 +97,31 @@ const Browse = () => {
     }
   }
 
-  const ownerLevels = useMemo(() => {
-    const levels: Record<string, { level: number; title: string }> = {}
-    for (const [ownerId, count] of Object.entries(ownerBookCounts)) {
-      const xp = count * 10
-      const info = getLevelInfo(xp)
-      levels[ownerId] = { level: info.level, title: info.title }
-    }
-    return levels
-  }, [ownerBookCounts])
+  const grouped = useMemo(
+    () => groupBooksByTitle(books, profile?.id),
+    [books, profile?.id]
+  )
 
-  const allTags = Array.from(
-    new Set(books.flatMap((book) => book.tags || []))
-  ).sort()
+  const allTags = useMemo(
+    () => Array.from(new Set(grouped.flatMap((g) => g.tags))).sort(),
+    [grouped]
+  )
 
-  const filteredBooks = books.filter((book) => {
-    const q = searchQuery.toLowerCase().trim()
-    if (!q && !selectedTag) return true
+  const filteredGroups = useMemo(() => {
+    return grouped.filter((group) => {
+      const q = searchQuery.toLowerCase().trim()
+      if (!q && !selectedTag) return true
 
-    const matchesSearch = q
-      ? book.title.toLowerCase().includes(q) ||
-        (book.author || "").toLowerCase().includes(q) ||
-        (book.tags && book.tags.some((tag) => tag.toLowerCase().includes(q)))
-      : true
+      const matchesSearch = q
+        ? group.title.toLowerCase().includes(q) ||
+          (group.author || "").toLowerCase().includes(q) ||
+          group.tags.some((tag) => tag.toLowerCase().includes(q))
+        : true
 
-    const matchesTag = selectedTag ? book.tags?.includes(selectedTag) : true
-    return matchesSearch && matchesTag
-  })
+      const matchesTag = selectedTag ? group.tags.includes(selectedTag) : true
+      return matchesSearch && matchesTag
+    })
+  }, [grouped, searchQuery, selectedTag])
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
@@ -115,7 +162,7 @@ const Browse = () => {
 
           {searchQuery && !isSearching && (
             <div className="text-sm text-muted-foreground mt-2">
-              找到 {filteredBooks.length} 本可換的書
+              找到 {filteredGroups.length} 本可換的書
             </div>
           )}
 
@@ -150,7 +197,7 @@ const Browse = () => {
               <BookCardSkeleton key={i} />
             ))}
           </div>
-        ) : filteredBooks.length === 0 ? (
+        ) : filteredGroups.length === 0 ? (
           <div className="text-center py-16 space-y-6">
             <BookOpen className="h-20 w-20 mx-auto text-muted-foreground/50" />
             <p className="text-xl font-medium text-muted-foreground">
@@ -159,19 +206,84 @@ const Browse = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredBooks.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                ownerName={book.owner_id_expanded?.display_name || "未知"}
-                ownerLevel={ownerLevels[book.owner_id]}
-                showOwner
-              />
+            {filteredGroups.map((group) => (
+              <Card
+                key={group.title}
+                className="group hover:shadow-md transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                onClick={() => navigate(`/book/${encodeURIComponent(group.title)}`)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg font-bold line-clamp-2 group-hover:text-primary transition-colors">
+                        {group.title}
+                      </CardTitle>
+                      {group.author && (
+                        <p className="text-sm text-muted-foreground mt-1">{group.author}</p>
+                      )}
+                    </div>
+                    {group.cover_url ? (
+                      <img
+                        src={group.cover_url}
+                        alt={group.title}
+                        className="w-12 h-16 object-cover rounded flex-shrink-0"
+                      />
+                    ) : (
+                      <BookMarked className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="gap-1">
+                      <Users className="h-3 w-3" />
+                      {group.ownerCount} 人擁有
+                    </Badge>
+                  </div>
+                  {group.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.tags.slice(0, 4).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs px-2 py-0.5">
+                          {tag}
+                        </Badge>
+                      ))}
+                      {group.tags.length > 4 && (
+                        <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                          +{group.tags.length - 4}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  {group.ownBookId && (
+                    <div className="pt-2 border-t flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => navigate(`/my/edit/${group.ownBookId}`)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        編輯
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => navigate(`/my/review/${group.ownBookId}`)}
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        寫心得
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
       </main>
 
+      <Footer />
       <Navigation />
     </div>
   )

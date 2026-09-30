@@ -21,6 +21,7 @@ export const XP_RULES = {
   ADD_BOOK: 10,
   LEND_OUT: 30,
   RETURN_COMPLETE: 20,
+  SWAP_COMPLETE: 40,
   BOOKS_10_MILESTONE: 50,
 } as const
 
@@ -79,4 +80,5 @@ export const BADGES: BadgeDef[] = [
   { id: 'swapper_20', name: '換書專家', description: '累計換出 20 次' },
   { id: 'returner', name: '有借有還', description: '完成第一次歸還' },
   { id: 'collector_30', name: '大藏家', description: '書架達 30 本' },
+  { id: 'photographer', name: '攝影師', description: '上傳第一張交換照片' },
 ]

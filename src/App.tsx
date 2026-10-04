@@ -17,6 +17,9 @@ import BookDetail from "./pages/BookDetail";
 import Terms from "./pages/Terms";
 import Rules from "./pages/Rules";
 import NotFound from "./pages/NotFound";
+import ReadingRecords from "./pages/ReadingRecords";
+import AddReadingRecord from "./pages/AddReadingRecord";
+import AskAI from "./pages/AskAI";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +34,9 @@ const App = () => (
           <Route path="/user/:id" element={<UserShelf />} />
           <Route path="/my" element={<MyShelf />} />
           <Route path="/my/add" element={<AddBook />} />
+          <Route path="/my/records" element={<ReadingRecords />} />
+          <Route path="/my/records/add" element={<AddReadingRecord />} />
+          <Route path="/ask" element={<AskAI />} />
           <Route path="/my/edit/:id" element={<AddBook />} />
           <Route path="/my/review/:bookId" element={<WriteReview />} />
           <Route path="/reviews" element={<Reviews />} />

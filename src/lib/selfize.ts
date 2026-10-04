@@ -41,6 +41,57 @@ export interface ListResult<T> {
   offset: number
 }
 
+/* per-user collections（rules: user）：帶 LetMeUse token 的客戶端 */
+function lmuHeaders(): Record<string, string> {
+  const t = window.letmeuse?.getToken?.()
+  return t ? { authorization: `Bearer ${t}` } : {}
+}
+
+export interface ReadingRecord {
+  id: string
+  book_id: string
+  chapter: string | null
+  pages: string | null
+  source_text: string | null
+  ai_summary: string | null
+  my_note: string | null
+  applied_note: string | null
+  topic_tags: string[] | null
+  images: string[] | null
+  created_at: string
+  updated_at: string
+}
+
+export const selfizeUser = {
+  async list<T = any>(collection: string, params?: Record<string, string>): Promise<ListResult<T>> {
+    const result = await request<ListResult<T>>(
+      `/api/collections/${collection}/records${buildQuery(params)}`,
+      { headers: lmuHeaders() },
+    )
+    return { ...result, items: result.items.map(item => parseJsonFields<T>(item)) }
+  },
+  create<T = any>(collection: string, data: Record<string, any>): Promise<T> {
+    return request(`/api/collections/${collection}/records`, {
+      method: 'POST',
+      headers: lmuHeaders(),
+      body: JSON.stringify(data),
+    })
+  },
+  update<T = any>(collection: string, id: string, data: Record<string, any>): Promise<T> {
+    return request(`/api/collections/${collection}/records/${id}`, {
+      method: 'PUT',
+      headers: lmuHeaders(),
+      body: JSON.stringify(data),
+    })
+  },
+  delete(collection: string, id: string): Promise<{ deleted: string }> {
+    return request(`/api/collections/${collection}/records/${id}`, {
+      method: 'DELETE',
+      headers: lmuHeaders(),
+    })
+  },
+}
+
 export const selfize = {
   async list<T = any>(collection: string, params?: Record<string, string>): Promise<ListResult<T>> {
     const result = await request<ListResult<T>>(`/api/collections/${collection}/records${buildQuery(params)}`)

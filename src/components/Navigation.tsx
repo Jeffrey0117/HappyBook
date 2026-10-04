@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { Home, BookOpen, Plus, ArrowLeftRight, PenLine } from "lucide-react"
+import { Home, BookOpen, Plus, ArrowLeftRight, PenLine, MessageCircleQuestion } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
@@ -17,6 +17,7 @@ const Navigation = () => {
     ...(isAuthenticated
       ? [
           { path: "/swaps/inbox", icon: ArrowLeftRight, label: "換書" },
+          { path: "/ask", icon: MessageCircleQuestion, label: "問書" },
           { path: "/my", icon: BookOpen, label: "書架" },
         ]
       : []),

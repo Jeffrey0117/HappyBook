@@ -69,7 +69,7 @@ const WriteReview = () => {
       if (!res.ok) throw new Error(data.error)
       setContent(data.draft)
       setPreviewing(false)
-      toast.success("草稿好了——改成你自己的話再發表")
+      toast.success("草稿好了，改成你自己的話再發表")
     } catch (error: any) {
       toast.error(error.message || "草稿生成失敗")
     } finally {

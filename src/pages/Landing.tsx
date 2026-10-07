@@ -13,7 +13,7 @@ const FEATURES = [
   {
     icon: NotebookPen,
     title: "標註筆記",
-    desc: "螢光筆、底線、批註，立場／核心／正反例分類標註——讀過的每一頁都留下論證地圖。",
+    desc: "螢光筆、底線、批註，立場／核心／正反例分類標註，讀過的每一頁都留下論證地圖。",
   },
   {
     icon: Sparkles,
@@ -104,7 +104,7 @@ const Landing = () => {
       </section>
 
       <footer className="text-center text-xs text-neutral-600 pb-6">
-        HappyBook —— 一起把書讀厚
+        HappyBook，一起把書讀厚
       </footer>
 
       <Navigation />

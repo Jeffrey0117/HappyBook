@@ -211,7 +211,7 @@ const AddReadingRecord = () => {
 
           <div>
             <label className="text-sm font-medium">這讓我想到什麼（你的心得）</label>
-            <Textarea value={myNote} onChange={(e) => setMyNote(e.target.value)} rows={3} className="mt-1" placeholder="你自己的想法、想怎麼用——跟作者的話分開存，AI 不會搞混" />
+            <Textarea value={myNote} onChange={(e) => setMyNote(e.target.value)} rows={3} className="mt-1" placeholder="你自己的想法、想怎麼用，跟作者的話分開存，AI 不會搞混" />
           </div>
 
           <div>

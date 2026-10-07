@@ -150,6 +150,7 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
   const [toolbar, setToolbar] = useState<ToolbarState | null>(null)
   const [notePanel, setNotePanel] = useState<NotePanelState | null>(null)
   const [outlineOpen, setOutlineOpen] = useState(false)
+  const [outlineSecOpen, setOutlineSecOpen] = useState<{ ul: boolean; note: boolean }>({ ul: false, note: false })
 
   const notes = highlights.filter((h) => h.k === "note")
 
@@ -286,59 +287,93 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
   const segments = buildSegments(text, highlights, lineStyles)
   const clampEnd = (n: number) => Math.max(0, Math.min(n, text.length))
 
-  // 標註目錄：所有標註按位置排序，點了跳到原文位置
-  const outline = [...highlights]
-    .sort((a, b) => a.s - b.s)
-    .map((h, i) => ({
-      key: h.id || `${h.k}-${h.s}-${i}`,
-      kind: h.k,
-      c: (h.c || "y") as HighlightColor,
-      label: h.k === "note" ? "批註" : h.k === "ul" ? "底線" : HL_CATEGORIES[h.c || "y"].label,
-      excerpt: h.k === "note" ? h.t || "" : text.slice(Math.max(0, h.s), Math.min(text.length, h.s + 24)),
-      pos: Math.max(0, Math.min(h.s, text.length)),
-    }))
+  // 標註目錄：語義分類分組（核心→重點→立場→正例→反例＝這篇的論證地圖）；
+  // 底線/批註性質不同，降級為分隔線下的折疊區（預設收合、只顯示計數）
+  const OUTLINE_ORDER: HighlightColor[] = ["b", "y", "p", "g", "r"]
+  const catGroups = OUTLINE_ORDER.map((c) => ({
+    c,
+    items: highlights.filter((h) => h.k === "hl" && (h.c || "y") === c).sort((a, b) => a.s - b.s),
+  })).filter((g) => g.items.length > 0)
+  const ulItems = highlights.filter((h) => h.k === "ul").sort((a, b) => a.s - b.s)
+  const noteItems = [...notes].sort((a, b) => a.s - b.s)
+  const outlineCount = highlights.length
 
   const jumpTo = (pos: number) => {
     document.getElementById(`annpos-${pos}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
     setOutlineOpen(false)
   }
 
-  const outlineItems = outline.map((item) => (
+  const excerptOf = (h: Highlight) => text.slice(Math.max(0, h.s), Math.min(text.length, h.s + 24))
+  const itemBtn = (h: Highlight, body: string) => (
     <button
-      key={item.key}
-      onClick={() => jumpTo(item.pos)}
-      className="w-full text-left flex items-start gap-1.5 px-2 py-1.5 rounded-md hover:bg-muted text-xs"
+      key={h.id || `${h.k}-${h.s}-${h.e}`}
+      onClick={() => jumpTo(Math.max(0, Math.min(h.s, text.length)))}
+      className="w-full text-left px-2 py-1 rounded-md hover:bg-muted text-xs"
     >
-      {item.kind === "note" ? (
-        <MessageSquare className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-      ) : (
-        <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-0.5 ${item.kind === "ul" ? "bg-foreground/40" : HL_CATEGORIES[item.c].dot}`} />
-      )}
-      <span className="min-w-0">
-        <span className="text-muted-foreground">{item.label}</span>{" "}
-        <span className="line-clamp-2 break-all">{item.excerpt}</span>
-      </span>
+      <span className="line-clamp-2 break-all">{body}</span>
     </button>
-  ))
+  )
+
+  const outlinePanel = (
+    <>
+      {catGroups.map((g) => (
+        <div key={g.c}>
+          <p className="flex items-center gap-1.5 px-2 pt-2 pb-0.5 text-xs font-medium">
+            <span className={`w-2.5 h-2.5 rounded-full ${HL_CATEGORIES[g.c].dot}`} />
+            {HL_CATEGORIES[g.c].label}（{g.items.length}）
+          </p>
+          {g.items.map((h) => itemBtn(h, excerptOf(h)))}
+        </div>
+      ))}
+      {(ulItems.length > 0 || noteItems.length > 0) && catGroups.length > 0 && (
+        <div className="border-t border-border mt-2" />
+      )}
+      {ulItems.length > 0 && (
+        <div>
+          <button
+            onClick={() => setOutlineSecOpen((p) => ({ ...p, ul: !p.ul }))}
+            className="w-full flex items-center gap-1 px-2 pt-2 pb-0.5 text-xs text-muted-foreground"
+          >
+            {outlineSecOpen.ul ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            底線（{ulItems.length}）
+          </button>
+          {outlineSecOpen.ul && ulItems.map((h) => itemBtn(h, excerptOf(h)))}
+        </div>
+      )}
+      {noteItems.length > 0 && (
+        <div>
+          <button
+            onClick={() => setOutlineSecOpen((p) => ({ ...p, note: !p.note }))}
+            className="w-full flex items-center gap-1 px-2 pt-2 pb-0.5 text-xs text-muted-foreground"
+          >
+            {outlineSecOpen.note ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            <MessageSquare className="w-3 h-3" />
+            批註（{noteItems.length}）
+          </button>
+          {outlineSecOpen.note && noteItems.map((h) => itemBtn(h, h.t || ""))}
+        </div>
+      )}
+    </>
+  )
 
   return (
     <>
-      {outline.length > 0 && (
+      {outlineCount > 0 && (
         <div className="xl:hidden mb-2">
           <button onClick={() => setOutlineOpen(!outlineOpen)} className="flex items-center gap-1 text-sm text-primary">
             <List className="w-4 h-4" />
-            標註目錄（{outline.length}）
+            標註目錄（{outlineCount}）
             {outlineOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
-          {outlineOpen && <div className="mt-1 border border-border rounded-lg p-1 space-y-0.5">{outlineItems}</div>}
+          {outlineOpen && <div className="mt-1 border border-border rounded-lg p-1 pb-2">{outlinePanel}</div>}
         </div>
       )}
-      {outline.length > 0 && (
+      {outlineCount > 0 && (
         <div className="hidden xl:block fixed right-6 top-28 w-60 max-h-[65vh] overflow-y-auto bg-card border border-border rounded-xl p-2 shadow-sm z-40">
           <p className="text-xs font-medium text-muted-foreground px-2 pb-1 flex items-center gap-1">
             <List className="w-3.5 h-3.5" />標註目錄
           </p>
-          <div className="space-y-0.5">{outlineItems}</div>
+          {outlinePanel}
         </div>
       )}
       <div

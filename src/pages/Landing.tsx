@@ -27,9 +27,9 @@ const Landing = () => {
   const { isAuthenticated, login } = useAuth()
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-neutral-950 pb-24">
       {/* Hero：黑底品牌區 */}
-      <section className="bg-neutral-950 text-white">
+      <section className="text-white">
         <div className="max-w-screen-md mx-auto px-6 pt-14 pb-16 text-center">
           <img
             src="/logo-happybook.png"
@@ -71,16 +71,16 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* 三大功能 */}
+      {/* 三大功能：延續黑白品牌風 */}
       <section className="max-w-screen-lg mx-auto px-6 py-14">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {FEATURES.map((f) => {
             const Icon = f.icon
             return (
-              <div key={f.title} className="bg-card border border-border rounded-2xl p-6">
-                <Icon className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold text-lg mb-2">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+              <div key={f.title} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 hover:border-neutral-600 transition-colors">
+                <Icon className="w-8 h-8 text-white mb-4" />
+                <h3 className="font-bold text-lg mb-2 text-white">{f.title}</h3>
+                <p className="text-sm text-neutral-400 leading-relaxed">{f.desc}</p>
               </div>
             )
           })}
@@ -89,21 +89,21 @@ const Landing = () => {
 
       {/* 次要入口 */}
       <section className="max-w-screen-md mx-auto px-6 pb-14 text-center">
-        <p className="text-muted-foreground mb-4">想先看看大家在讀什麼？</p>
+        <p className="text-neutral-500 mb-4">想先看看大家在讀什麼？</p>
         <div className="flex flex-wrap gap-3 justify-center">
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="border-neutral-700 bg-transparent text-white hover:bg-neutral-800 hover:text-white">
             <Link to="/browse">瀏覽書籍</Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="border-neutral-700 bg-transparent text-white hover:bg-neutral-800 hover:text-white">
             <Link to="/reviews">看看心得</Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="border-neutral-700 bg-transparent text-white hover:bg-neutral-800 hover:text-white">
             <Link to="/wall">換書動態牆</Link>
           </Button>
         </div>
       </section>
 
-      <footer className="text-center text-xs text-muted-foreground pb-6">
+      <footer className="text-center text-xs text-neutral-600 pb-6">
         HappyBook —— 一起把書讀厚
       </footer>
 

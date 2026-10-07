@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { selfize, type Profile, type Book, type Review } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
+import UserMenu from "@/components/UserMenu"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
 import { ArrowLeft, BookOpen, NotebookPen, Instagram } from "lucide-react"
@@ -85,14 +86,14 @@ const UserShelf = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border shadow-sm">
-        <div className="max-w-screen-xl mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            返回
+        <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          {profile && (
-            <h1 className="text-xl font-bold">{profile.display_name} 的書架</h1>
-          )}
+          <h1 className="text-lg sm:text-xl font-bold truncate flex-1">
+            {profile ? `${profile.display_name} 的書架` : "書架"}
+          </h1>
+          <UserMenu />
         </div>
       </header>
 

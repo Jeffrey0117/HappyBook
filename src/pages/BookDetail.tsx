@@ -25,6 +25,7 @@ import {
   Loader2,
 } from "lucide-react"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
+import UserMenu from "@/components/UserMenu"
 import { readCache, writeCache } from "@/lib/page-cache"
 import { mdPreserveBreaks, reviewRehypePlugins } from "@/lib/markdown"
 import { useAuth } from "@/hooks/use-auth"
@@ -277,7 +278,8 @@ const BookDetail = () => {
             <Button variant="ghost" size="sm" onClick={() => navigate("/browse")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-xl font-bold truncate">{decodedTitle}</h1>
+            <h1 className="text-xl font-bold truncate flex-1">{decodedTitle}</h1>
+            <UserMenu />
           </div>
         </div>
       </header>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { selfize, type Book, type Profile } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
+import AppHeader from "@/components/AppHeader"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
 import OnboardingDialog from "@/components/OnboardingDialog"
@@ -129,28 +130,24 @@ const MyShelf = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
-      <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border shadow-sm">
-        <div className="max-w-screen-xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold">我的書架</h1>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <Button variant="outline" onClick={() => navigate("/swaps/inbox")} className="relative">
-                <ArrowLeftRight className="h-4 w-4 mr-2" />
-                換書
-                {pendingCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1">
-                    {pendingCount}
-                  </span>
-                )}
-              </Button>
-              <Button onClick={() => navigate("/my/add")}>
-                <Plus className="h-4 w-4 mr-2" />
-                上架新書
-              </Button>
-            </div>
-          </div>
+      <AppHeader>
+        <h1 className="text-lg sm:text-xl font-bold truncate">我的書架</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate("/swaps/inbox")} className="relative">
+            <ArrowLeftRight className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">換書</span>
+            {pendingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1">
+                {pendingCount}
+              </span>
+            )}
+          </Button>
+          <Button size="sm" onClick={() => navigate("/my/add")}>
+            <Plus className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">上架新書</span>
+          </Button>
         </div>
-      </header>
+      </AppHeader>
 
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         {viewProfile && (

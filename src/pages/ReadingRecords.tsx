@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { selfize, selfizeUser, type Book, type ReadingRecord, type Highlight } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
+import AppHeader from "@/components/AppHeader"
 import SourceHighlighter, { HL_CATEGORIES } from "@/components/SourceHighlighter"
 import type { HighlightColor } from "@/lib/selfize"
 import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn, ChevronDown, ChevronUp, Sparkles, Globe, Lock, Eye, EyeOff, Library } from "lucide-react"
@@ -165,6 +166,9 @@ const ReadingRecords = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+      <AppHeader>
+        <h1 className="text-lg sm:text-xl font-bold truncate">閱讀紀錄</h1>
+      </AppHeader>
       <div className="max-w-screen-md mx-auto px-4 pt-6">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
           <button onClick={() => navigate("/my")} className="flex items-center text-muted-foreground text-sm shrink-0">
@@ -184,8 +188,7 @@ const ReadingRecords = () => {
             </Button>
           </div>
         </div>
-        <h1 className="text-2xl font-bold mb-1">閱讀紀錄</h1>
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-6 mt-2">
           預設私人（原文與心得只有你和 AI 討論室看得到）；設為公開的紀錄會以「引句＋批註」出現在你的公開書牆。
         </p>
 

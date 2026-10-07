@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Navigation from "@/components/Navigation"
+import AppHeader from "@/components/AppHeader"
 import { HL_CATEGORIES } from "@/components/SourceHighlighter"
 import { readCache, writeCache } from "@/lib/page-cache"
 import { useAuth } from "@/hooks/use-auth"
@@ -247,8 +248,10 @@ const Feed = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+      <AppHeader>
+        <h1 className="text-lg sm:text-xl font-bold truncate">動態</h1>
+      </AppHeader>
       <div className="max-w-screen-sm mx-auto px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-4">動態</h1>
 
         {/* 發文框 */}
         {isAuthenticated && profile ? (

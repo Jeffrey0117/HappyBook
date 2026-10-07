@@ -24,7 +24,8 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
     ],
     content: value,
     onUpdate: ({ editor }) => {
-      const md = (editor.storage as any).markdown.getMarkdown()
+      // 反斜線硬斷行正規化成一般換行，存進 DB 的 Markdown 保持乾淨
+      const md = (editor.storage as any).markdown.getMarkdown().replace(/\\\n/g, "\n")
       internalMd.current = md
       onChange(md)
     },
@@ -80,6 +81,13 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
       {/* Medium 式選取浮動工具列 */}
       <BubbleMenu editor={editor}>
         <div className="flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-lg px-1 py-1">
+          <button type="button" title="大標題" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btn(editor.isActive("heading", { level: 2 }))}>
+            <Heading2 className="w-4 h-4" />
+          </button>
+          <button type="button" title="小標題" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={btn(editor.isActive("heading", { level: 3 }))}>
+            <Heading3 className="w-4 h-4" />
+          </button>
+          <div className="w-px h-5 bg-border mx-0.5" />
           <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btn(editor.isActive("bold"))}>
             <Bold className="w-4 h-4" />
           </button>

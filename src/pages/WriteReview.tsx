@@ -114,6 +114,13 @@ const WriteReview = () => {
           content: content.trim(),
           rating,
         })
+        // 快取直寫：回到書本頁立刻看到新版
+        const saved = { ...existingReview, content: content.trim(), rating }
+        writeCache(`wr_rev_${profile.id}_${bookId}`, saved)
+        const rc = readCache<Review[]>(`book_${book.title}_reviews`)
+        if (rc) {
+          writeCache(`book_${book.title}_reviews`, rc.map((r) => (r.id === saved.id ? { ...r, content: saved.content, rating } : r)))
+        }
         toast.success("心得已更新")
       } else {
         const created = await selfize.create<Review>("reviews", {
@@ -137,9 +144,10 @@ const WriteReview = () => {
             likes: [],
           })
         } catch {}
+        writeCache(`wr_rev_${profile.id}_${bookId}`, created)
         toast.success("心得已發表")
       }
-      navigate("/my")
+      navigate(`/book/${encodeURIComponent(book.title)}`)
     } catch (error) {
       toast.error("儲存失敗，請重試")
     } finally {

@@ -8,6 +8,7 @@ const NBSP = String.fromCharCode(160)
 
 export function mdPreserveBreaks(md: string): string {
   return md
+    .replace(/\\\n/g, "\n") // TipTap 序列化的反斜線硬斷行 → 一般換行（避免跟兩空格斷行打架變成字面 \）
     .replace(/\n{3,}/g, (m) => "\n\n" + (NBSP + "\n\n").repeat(m.length - 2))
     .replace(/\n/g, "  \n")
 }

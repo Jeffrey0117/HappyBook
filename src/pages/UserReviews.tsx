@@ -122,7 +122,7 @@ const UserReviews = () => {
                   </div>
 
                   <div className="prose-review text-sm">
-                    <ReactMarkdown>{review.content}</ReactMarkdown>
+                    <ReactMarkdown>{review.content.replace(/\n/g, "  \n")}</ReactMarkdown>
                   </div>
                 </CardContent>
               </Card>

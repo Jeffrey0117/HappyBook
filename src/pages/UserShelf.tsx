@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import { selfize, type Profile, type Book } from "@/lib/selfize"
+import { selfize, type Profile, type Book, type Review } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import BookShelf from "@/components/BookShelf"
@@ -15,16 +15,18 @@ const UserShelf = () => {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({}) // book_id → 公開筆記數
+  const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const stats = useGameStats(id)
 
   useEffect(() => {
     // 快取先上（秒出），背景再抓最新
-    const cached = readCache<{ profile: Profile; books: Book[]; noteCounts: Record<string, number> }>(`usershelf_${id}`)
+    const cached = readCache<{ profile: Profile; books: Book[]; noteCounts: Record<string, number>; reviews: Review[] }>(`usershelf_${id}`)
     if (cached) {
       setProfile(cached.profile)
       setBooks(cached.books)
       setNoteCounts(cached.noteCounts || {})
+      setReviews(cached.reviews || [])
       setLoading(false)
     }
     fetchUserData()
@@ -32,21 +34,32 @@ const UserShelf = () => {
 
   const fetchUserData = async () => {
     try {
-      // profile 和書單平行抓
-      const [profileData, { items }] = await Promise.all([
+      // profile、書單、心得平行抓
+      const [profileData, { items }, { items: reviewItems }] = await Promise.all([
         selfize.get<Profile>("profiles", id!),
         selfize.list<Book>("books", { owner_id: id!, sort: "-created_at", limit: "500" }),
+        selfize.list<Review>("reviews", { user_id: id!, sort: "-created_at", limit: "50" }),
       ])
       setProfile(profileData)
       setBooks(items)
+      setReviews(reviewItems)
       const counts = await fetchNoteCounts(profileData.user_id)
-      writeCache(`usershelf_${id}`, { profile: profileData, books: items, noteCounts: counts })
+      writeCache(`usershelf_${id}`, { profile: profileData, books: items, noteCounts: counts, reviews: reviewItems })
     } catch (error) {
       // silently fail
     } finally {
       setLoading(false)
     }
   }
+
+  // Medium 風格摘要：去掉 markdown 記號、串成一段
+  const excerptOf = (md: string) =>
+    md
+      .split("\n")
+      .map((l) => l.replace(/^[#>\-*\s]+/, "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .slice(0, 160)
 
   const fetchNoteCounts = async (userId: string): Promise<Record<string, number>> => {
     try {
@@ -84,7 +97,7 @@ const UserShelf = () => {
       <main className="max-w-screen-xl mx-auto px-4 py-6">
         {/* 新聞版型：左大欄＝書櫃，右側欄＝個人小面板 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
             {loading ? (
               <div className="h-60 bg-muted animate-pulse rounded-xl" />
             ) : books.length === 0 ? (
@@ -94,6 +107,42 @@ const UserShelf = () => {
               </div>
             ) : (
               <BookShelf books={books} />
+            )}
+
+            {/* Medium 風格心得文列表 */}
+            {reviews.length > 0 && (
+              <section>
+                <h2 className="text-lg font-bold mb-4">心得</h2>
+                <div className="space-y-6">
+                  {reviews.map((review) => (
+                    <Link
+                      key={review.id}
+                      to={`/book/${encodeURIComponent(review.book_title)}`}
+                      className="block group"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-xl font-bold group-hover:text-primary transition-colors leading-snug">
+                          《{review.book_title}》
+                        </h3>
+                        {review.rating === "up" && (
+                          <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/40 dark:text-green-400 px-2 py-0.5 rounded-full shrink-0">👍 推</span>
+                        )}
+                        {review.rating === "down" && (
+                          <span className="text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-400 px-2 py-0.5 rounded-full shrink-0">👎 倒讚</span>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground leading-relaxed line-clamp-3">
+                        {excerptOf(review.content)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(review.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "short", day: "numeric" })}
+                        　·　閱讀全文 →
+                      </p>
+                      <div className="border-b border-border mt-6" />
+                    </Link>
+                  ))}
+                </div>
+              </section>
             )}
           </div>
 

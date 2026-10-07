@@ -232,7 +232,7 @@ const WriteReview = () => {
           {previewing ? (
             <div className="prose-review min-h-[200px] p-4 rounded-md border bg-card">
               {content.trim() ? (
-                <ReactMarkdown>{content}</ReactMarkdown>
+                <ReactMarkdown>{content.replace(/\n/g, "  \n")}</ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground italic">還沒有內容</p>
               )}

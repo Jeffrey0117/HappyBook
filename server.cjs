@@ -150,6 +150,81 @@ async function handleSummarize(req, res) {
   }
 }
 
+/* ---------- /api/draft-review：把本人的閱讀紀錄彙整成心得草稿 ---------- */
+const CAT_LABEL = { y: '重點', g: '正面例子', r: '反面例子', b: '核心思想', p: '作者立場' };
+async function handleDraftReview(req, res) {
+  const auth = await verifyLmu(req);
+  if (!auth) return sendJson(res, 401, { error: '請先登入' });
+  if (!OPENAI_KEY) return sendJson(res, 503, { error: 'AI 尚未設定' });
+  let body;
+  try {
+    body = JSON.parse(await readBody(req));
+  } catch (err) {
+    return sendJson(res, 400, { error: '資料格式不對' });
+  }
+  const bookId = String(body.book_id || '');
+  if (!bookId) return sendJson(res, 400, { error: '缺 book_id' });
+  try {
+    // 用使用者自己的 token 撈 → selfize 強制隔離，拿不到別人的紀錄
+    const r = await fetch(SELFIZE_URL + '/api/collections/reading_records/records?perPage=200', {
+      headers: { Authorization: 'Bearer ' + auth.token },
+    });
+    const data = await r.json();
+    if (!r.ok) return sendJson(res, 502, { error: '讀取閱讀紀錄失敗' });
+    const parse = (v, fb) => {
+      try { return typeof v === 'string' ? JSON.parse(v) : (v == null ? fb : v); } catch (e) { return fb; }
+    };
+    const recs = (data.items || []).filter((rec) => rec.book_id === bookId);
+    if (!recs.length) return sendJson(res, 400, { error: '這本書還沒有閱讀紀錄——先去「紀錄」收錄幾段，草稿才有材料' });
+
+    let bookTitle = '';
+    try {
+      const b = await (await fetch(SELFIZE_URL + '/api/collections/books/records/' + encodeURIComponent(bookId))).json();
+      bookTitle = b.title || '';
+    } catch (e) { /* 書名拿不到就空著 */ }
+
+    const context = recs
+      .map((rec, i) => {
+        const text = rec.source_text || '';
+        const hls = parse(rec.highlights, []) || [];
+        const sliceOf = (h) => text.slice(Math.max(0, h.s || 0), Math.min(text.length, h.e || 0));
+        const quotes = hls
+          .filter((h) => h.k === 'hl' || h.k === 'ul')
+          .map((h) => `【${h.k === 'ul' ? '底線' : CAT_LABEL[h.c || 'y']}】「${sliceOf(h)}」`)
+          .join('\n');
+        const notes = hls
+          .filter((h) => h.k === 'note' && h.t)
+          .map((h) => `對「${sliceOf(h).slice(0, 40)}」的批註：${h.t}`)
+          .join('\n');
+        return `=== 紀錄 ${i + 1}${rec.chapter ? '（' + rec.chapter + '）' : ''}${rec.pages ? ' p.' + rec.pages : ''} ===
+劃線：
+${quotes || '（無）'}
+批註：
+${notes || '（無）'}
+我的心得：${rec.my_note || '（無）'}
+重點整理：${rec.ai_summary || '（無）'}`;
+      })
+      .join('\n\n');
+
+    const draft = await openai(
+      [
+        {
+          role: 'system',
+          content:
+            '你是閱讀筆記助手，幫使用者把自己的閱讀紀錄彙整成一篇讀後心得「草稿」。規則：(1) 只能使用提供的材料——使用者的劃線、批註、心得；絕對不要補充材料裡沒有的書中內容。(2) 以使用者的第一人稱口吻書寫，核心論點以使用者自己的批註與心得為主，引句只是佐證。(3) 引用劃線時只用短句，以 Markdown 的 > 引言格式，每個論點至多引一句。(4) 結構：開頭一兩句總括 → 2-4 段論點（搭配引句）→ 結尾收穫或行動。(5) 繁體中文，Markdown 格式，400-800 字。這是草稿，語氣自然直接，不要客套。',
+        },
+        { role: 'user', content: `書名：《${bookTitle}》\n\n我的閱讀紀錄：\n\n${context.slice(0, 16000)}` },
+      ],
+      1500
+    );
+
+    sendJson(res, 200, { draft });
+  } catch (err) {
+    console.error('draft review error:', err.message);
+    sendJson(res, 502, { error: '草稿生成失敗，再試一次' });
+  }
+}
+
 /* ---------- /api/ask：AI 討論室（檢索本人閱讀紀錄 → 附來源回答） ---------- */
 function scoreRecord(rec, question) {
   // 簡易關鍵詞相關性：v1 不上 embedding，字詞重疊打分
@@ -301,6 +376,7 @@ http
       if (req.method === 'POST' && p === '/api/ocr') return await handleOcr(req, res);
       if (req.method === 'POST' && p === '/api/summarize') return await handleSummarize(req, res);
       if (req.method === 'POST' && p === '/api/ask') return await handleAsk(req, res);
+      if (req.method === 'POST' && p === '/api/draft-review') return await handleDraftReview(req, res);
       if (req.method === 'GET' && p === '/api/public/records') return await handlePublicRecords(req, res, reqUrl.searchParams);
 
       let file = path.normalize(path.join(DIST, p));

@@ -4,7 +4,7 @@ import { selfize, type Book, type Review } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import Navigation from "@/components/Navigation"
-import { ArrowLeft, Loader2, Eye, Edit, LogIn } from "lucide-react"
+import { ArrowLeft, Loader2, Eye, Edit, LogIn, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
@@ -21,6 +21,7 @@ const WriteReview = () => {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const [drafting, setDrafting] = useState(false)
 
   useEffect(() => {
     if (profile && bookId) {
@@ -48,6 +49,31 @@ const WriteReview = () => {
       navigate("/my")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDraft = async () => {
+    if (!bookId) return
+    if (content.trim() && !confirm("生成草稿會覆蓋目前的內容，確定？")) return
+    setDrafting(true)
+    try {
+      const res = await fetch("/api/draft-review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${window.letmeuse?.getToken?.() || ""}`,
+        },
+        body: JSON.stringify({ book_id: bookId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setContent(data.draft)
+      setPreviewing(false)
+      toast.success("草稿好了——改成你自己的話再發表")
+    } catch (error: any) {
+      toast.error(error.message || "草稿生成失敗")
+    } finally {
+      setDrafting(false)
     }
   }
 
@@ -141,15 +167,27 @@ const WriteReview = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium">讀後心得</label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setPreviewing(!previewing)}
-            >
-              {previewing ? <Edit className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
-              {previewing ? "編輯" : "預覽"}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDraft}
+                disabled={drafting}
+              >
+                {drafting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                {drafting ? "彙整中…" : "從我的紀錄生成草稿"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPreviewing(!previewing)}
+              >
+                {previewing ? <Edit className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
+                {previewing ? "編輯" : "預覽"}
+              </Button>
+            </div>
           </div>
           {previewing ? (
             <div className="prose-review min-h-[200px] p-4 rounded-md border bg-card">

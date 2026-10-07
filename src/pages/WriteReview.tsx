@@ -4,7 +4,7 @@ import { selfize, type Book, type Review } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import Navigation from "@/components/Navigation"
-import { ArrowLeft, Loader2, Eye, Edit, LogIn, Sparkles } from "lucide-react"
+import { ArrowLeft, Loader2, Eye, Edit, LogIn, Sparkles, ThumbsUp, ThumbsDown } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
@@ -22,6 +22,7 @@ const WriteReview = () => {
   const [submitting, setSubmitting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [drafting, setDrafting] = useState(false)
+  const [rating, setRating] = useState<"up" | "down" | null>(null)
 
   useEffect(() => {
     if (profile && bookId) {
@@ -43,6 +44,7 @@ const WriteReview = () => {
       if (items.length > 0) {
         setExistingReview(items[0])
         setContent(items[0].content)
+        setRating(items[0].rating || null)
       }
     } catch (error) {
       toast.error("無法載入書籍資料")
@@ -84,6 +86,7 @@ const WriteReview = () => {
       if (existingReview) {
         await selfize.update("reviews", existingReview.id, {
           content: content.trim(),
+          rating,
         })
         toast.success("心得已更新")
       } else {
@@ -93,6 +96,7 @@ const WriteReview = () => {
           book_title: book.title,
           book_author: book.author || "",
           content: content.trim(),
+          rating,
         })
         // 新書評自動進動態 feed（失敗不影響發表）
         try {
@@ -176,6 +180,29 @@ const WriteReview = () => {
             )}
           </div>
         )}
+
+        {/* 推／倒讚 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">這本書：</span>
+          <Button
+            type="button"
+            size="sm"
+            variant={rating === "up" ? "default" : "outline"}
+            onClick={() => setRating(rating === "up" ? null : "up")}
+            className={rating === "up" ? "bg-green-600 hover:bg-green-700" : ""}
+          >
+            <ThumbsUp className="h-4 w-4 mr-1" />推
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={rating === "down" ? "default" : "outline"}
+            onClick={() => setRating(rating === "down" ? null : "down")}
+            className={rating === "down" ? "bg-red-600 hover:bg-red-700" : ""}
+          >
+            <ThumbsDown className="h-4 w-4 mr-1" />倒讚
+          </Button>
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">

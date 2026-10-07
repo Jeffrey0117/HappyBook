@@ -290,9 +290,21 @@ const BookDetail = () => {
                               </span>
                             </Link>
                           )}
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatDate(review.created_at)}
-                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {review.rating === "up" && (
+                              <span className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/40 dark:text-green-400 px-2 py-0.5 rounded-full">
+                                👍 推
+                              </span>
+                            )}
+                            {review.rating === "down" && (
+                              <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-400 px-2 py-0.5 rounded-full">
+                                👎 倒讚
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {formatDate(review.created_at)}
+                            </span>
+                          </div>
                         </div>
                         <div className="prose-review text-sm">
                           <ReactMarkdown>{review.content}</ReactMarkdown>

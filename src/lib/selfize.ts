@@ -229,6 +229,7 @@ export interface Review {
   book_title: string
   book_author: string
   content: string
+  rating: 'up' | 'down' | null
   created_at: string
   updated_at: string
 }

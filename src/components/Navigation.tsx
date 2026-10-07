@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { Home, BookOpen, Plus, ArrowLeftRight, PenLine, MessageCircleQuestion } from "lucide-react"
+import { Home, BookOpen, Plus, ArrowLeftRight, PenLine, NotebookPen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
@@ -17,7 +17,7 @@ const Navigation = () => {
     ...(isAuthenticated
       ? [
           { path: "/swaps/inbox", icon: ArrowLeftRight, label: "換書" },
-          { path: "/ask", icon: MessageCircleQuestion, label: "問書" },
+          { path: "/my/records", icon: NotebookPen, label: "紀錄" },
           { path: "/my", icon: BookOpen, label: "書架" },
         ]
       : []),
@@ -30,7 +30,8 @@ const Navigation = () => {
           const Icon = item.icon
           const isActive = location.pathname === item.path ||
             (item.path === '/swaps/inbox' && location.pathname.startsWith('/swaps')) ||
-            (item.path === '/reviews' && location.pathname.startsWith('/reviews'))
+            (item.path === '/reviews' && location.pathname.startsWith('/reviews')) ||
+            (item.path === '/my/records' && location.pathname.startsWith('/my/records'))
           const showBadge = item.path === '/swaps/inbox' && pendingCount > 0
           return (
             <Link

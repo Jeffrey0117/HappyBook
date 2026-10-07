@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { selfize, type Profile } from '@/lib/selfize'
 import { useAuth } from './use-auth'
+import { readCache, writeCache } from '@/lib/page-cache'
 
 export function useProfile() {
   const { user, isAuthenticated } = useAuth()
@@ -14,6 +15,12 @@ export function useProfile() {
       return
     }
 
+    // 快取先上：頭像、名字進頁瞬間就是對的，不閃預設小人
+    const cached = readCache<Profile>(`profile_${user.id}`)
+    if (cached) {
+      setProfile(cached)
+      setLoading(false)
+    }
     syncProfile()
   }, [user, isAuthenticated])
 
@@ -39,8 +46,10 @@ export function useProfile() {
             ...(user.avatar ? { avatar_url: user.avatar } : {}),
           })
           setProfile(updated)
+          writeCache(`profile_${user.id}`, updated)
         } else {
           setProfile(existing)
+          writeCache(`profile_${user.id}`, existing)
         }
       } else {
         const created = await selfize.create<Profile>('profiles', {
@@ -49,6 +58,7 @@ export function useProfile() {
           avatar_url: user.avatar || null,
         })
         setProfile(created)
+        writeCache(`profile_${user.id}`, created)
       }
     } catch (error) {
       console.error('Profile sync failed:', error)
@@ -62,8 +72,9 @@ export function useProfile() {
     if (!current) throw new Error('Profile not loaded')
     const updated = await selfize.update<Profile>('profiles', current.id, data)
     setProfile(updated)
+    if (user) writeCache(`profile_${user.id}`, updated)
     return updated
-  }, [profile])
+  }, [profile, user])
 
   return { profile, loading, updateProfile }
 }

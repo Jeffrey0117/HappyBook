@@ -12,7 +12,7 @@ const Navigation = () => {
   const { pendingCount } = useSwapRequests(isAuthenticated ? profile?.id : undefined)
 
   const navItems = [
-    { path: "/", icon: Home, label: "瀏覽" },
+    { path: "/browse", icon: Home, label: "瀏覽" },
     { path: "/reviews", icon: PenLine, label: "心得" },
     ...(isAuthenticated
       ? [

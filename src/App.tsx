@@ -21,6 +21,7 @@ import ReadingRecords from "./pages/ReadingRecords";
 import AddReadingRecord from "./pages/AddReadingRecord";
 import AskAI from "./pages/AskAI";
 import PublicShelf from "./pages/PublicShelf";
+import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
@@ -31,7 +32,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Browse />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/browse" element={<Browse />} />
           <Route path="/user/:id" element={<UserShelf />} />
           <Route path="/my" element={<MyShelf />} />
           <Route path="/my/add" element={<AddBook />} />

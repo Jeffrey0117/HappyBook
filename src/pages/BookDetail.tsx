@@ -156,7 +156,7 @@ const BookDetail = () => {
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border shadow-sm">
         <div className="max-w-screen-xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/browse")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-xl font-bold truncate">{decodedTitle}</h1>

@@ -239,7 +239,14 @@ async function handleAsk(req, res) {
 /* ---------- /api/public/records：公開書牆（引句＋批註模式；全文只在伺服器端，絕不回傳） ---------- */
 async function handlePublicRecords(req, res, searchParams) {
   const user = String(searchParams.get('user') || '');
-  if (!/^usr_[A-Za-z0-9]+$/.test(user)) return sendJson(res, 400, { error: 'user 參數不對' });
+  const bookIds = String(searchParams.get('book') || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => /^[A-Za-z0-9-]{8,64}$/.test(s))
+    .slice(0, 50);
+  if (!/^usr_[A-Za-z0-9]+$/.test(user) && bookIds.length === 0) {
+    return sendJson(res, 400, { error: 'user 或 book 參數擇一' });
+  }
   if (!SELFIZE_TOKEN) return sendJson(res, 503, { error: '公開書牆尚未設定' });
   try {
     const owner = LMU_APP_ID + ':' + user;
@@ -252,7 +259,8 @@ async function handlePublicRecords(req, res, searchParams) {
       try { return typeof v === 'string' ? JSON.parse(v) : (v == null ? fb : v); } catch (e) { return fb; }
     };
     const records = (data.items || [])
-      .filter((rec) => rec._owner === owner && rec.visibility === 'public')
+      .filter((rec) => rec.visibility === 'public')
+      .filter((rec) => (bookIds.length > 0 ? bookIds.includes(rec.book_id) : rec._owner === owner))
       .map((rec) => {
         const text = rec.source_text || '';
         const hls = parse(rec.highlights, []) || [];
@@ -260,6 +268,7 @@ async function handlePublicRecords(req, res, searchParams) {
         return {
           id: rec.id,
           book_id: rec.book_id,
+          user: String(rec._owner || '').split(':')[1] || '',
           chapter: rec.chapter || '',
           pages: rec.pages || '',
           ai_summary: rec.ai_summary || '',

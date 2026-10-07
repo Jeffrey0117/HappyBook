@@ -20,6 +20,7 @@ import {
   FileText,
   User,
 } from "lucide-react"
+import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { useMyBooks } from "@/hooks/use-my-books"
@@ -41,6 +42,7 @@ const BookDetail = () => {
   const { createRequest } = useSwapRequests(profile?.id)
 
   const [books, setBooks] = useState<BookWithOwner[]>([])
+  const [publicNotes, setPublicNotes] = useState<PublicRecord[]>([])
   const [reviews, setReviews] = useState<ReviewExpanded[]>([])
   const [loading, setLoading] = useState(true)
   const [reviewsLoading, setReviewsLoading] = useState(true)
@@ -66,10 +68,22 @@ const BookDetail = () => {
         (b) => b.title.toLowerCase().trim() === decodedTitle.toLowerCase().trim()
       )
       setBooks(matched)
+      fetchPublicNotes(matched.map((b) => b.id))
     } catch (error) {
       toast.error("無法載入書籍資料")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchPublicNotes = async (bookIds: string[]) => {
+    if (bookIds.length === 0) return
+    try {
+      const res = await fetch(`/api/public/records?book=${bookIds.join(",")}`)
+      const data = await res.json()
+      if (res.ok) setPublicNotes(data.records || [])
+    } catch (error) {
+      // 公開筆記載入失敗不影響頁面其他部分
     }
   }
 
@@ -265,6 +279,43 @@ const BookDetail = () => {
                 </div>
               )}
             </section>
+
+            {/* Public reading notes section */}
+            {publicNotes.length > 0 && (
+              <section className="space-y-4">
+                <h3 className="text-lg font-semibold">讀者筆記</h3>
+                <div className="space-y-4">
+                  {publicNotes.map((rec) => {
+                    const sourceBook = books.find((b) => b.id === rec.book_id)
+                    const ownerProfile = sourceBook?.owner_id_expanded
+                    return (
+                      <Card key={rec.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <Link
+                              to={sourceBook ? `/user/${sourceBook.owner_id}` : "#"}
+                              className="flex items-center gap-2 min-w-0"
+                            >
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={ownerProfile?.avatar_url || undefined} />
+                                <AvatarFallback><User className="h-3 w-3" /></AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium hover:text-primary transition-colors truncate">
+                                {ownerProfile?.display_name || "讀者"}
+                              </span>
+                            </Link>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {rec.chapter}{rec.pages ? ` p.${rec.pages}` : ""}
+                            </span>
+                          </div>
+                          <PublicRecordCard record={rec} />
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Reviews section */}
             <section className="space-y-4">

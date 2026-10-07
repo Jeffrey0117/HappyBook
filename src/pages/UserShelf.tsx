@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, Link } from "react-router-dom"
 import { selfize, type Profile, type Book } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
-import { ArrowLeft, BookOpen } from "lucide-react"
+import { ArrowLeft, BookOpen, NotebookPen } from "lucide-react"
 import { useGameStats } from "@/hooks/use-game-stats"
 
 const UserShelf = () => {
@@ -13,6 +13,7 @@ const UserShelf = () => {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [books, setBooks] = useState<Book[]>([])
+  const [noteCounts, setNoteCounts] = useState<Record<string, number>>({}) // book_id → 公開筆記數
   const [loading, setLoading] = useState(true)
   const stats = useGameStats(id)
 
@@ -31,12 +32,30 @@ const UserShelf = () => {
         limit: "500",
       })
       setBooks(items)
+      fetchNoteCounts(profileData.user_id)
     } catch (error) {
       // silently fail
     } finally {
       setLoading(false)
     }
   }
+
+  const fetchNoteCounts = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/public/records?user=${encodeURIComponent(userId)}`)
+      const data = await res.json()
+      if (!res.ok) return
+      const counts: Record<string, number> = {}
+      for (const rec of data.records || []) {
+        counts[rec.book_id] = (counts[rec.book_id] || 0) + 1
+      }
+      setNoteCounts(counts)
+    } catch (error) {
+      // 筆記提示載入失敗不影響書架
+    }
+  }
+
+  const notedBooks = books.filter((b) => noteCounts[b.id])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
@@ -55,6 +74,27 @@ const UserShelf = () => {
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         {profile && !stats.loading && (
           <ProfileCard profile={profile} stats={stats} />
+        )}
+
+        {notedBooks.length > 0 && (
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-sm font-medium flex items-center gap-1.5 mb-2">
+              <NotebookPen className="w-4 h-4 text-primary" />
+              有閱讀筆記的書
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {notedBooks.map((b) => (
+                <Link
+                  key={b.id}
+                  to={`/book/${encodeURIComponent(b.title)}`}
+                  className="text-sm bg-muted hover:bg-primary/10 px-3 py-1.5 rounded-full transition-colors"
+                >
+                  《{b.title}》
+                  <span className="text-muted-foreground ml-1">{noteCounts[b.id]} 筆</span>
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
 
         {loading ? (

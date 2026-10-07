@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom"
 import { selfize, type Book, type Profile } from "@/lib/selfize"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
 import Navigation from "@/components/Navigation"
-import { Loader2, BookOpen, ArrowLeft } from "lucide-react"
+import { Loader2, BookOpen, ArrowLeft, Instagram } from "lucide-react"
 
 const PublicShelf = () => {
   const { userId } = useParams()
@@ -50,9 +50,20 @@ const PublicShelf = () => {
         <h1 className="text-2xl font-bold mb-1">
           {profile?.display_name || "讀者"} 的閱讀書牆
         </h1>
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-2">
           {profile?.bio || "劃線引句與閱讀筆記，持續累積中。"}
         </p>
+        {profile?.ig && (
+          <a
+            href={`https://instagram.com/${profile.ig.replace(/^@/, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm text-pink-500 hover:underline mb-4"
+          >
+            <Instagram className="w-4 h-4" />@{profile.ig.replace(/^@/, "")}
+          </a>
+        )}
+        <div className="mb-4" />
 
         {loading ? (
           <div className="flex justify-center pt-16"><Loader2 className="w-6 h-6 animate-spin" /></div>

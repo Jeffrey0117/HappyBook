@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
-import { ArrowLeft, BookOpen, NotebookPen } from "lucide-react"
+import { ArrowLeft, BookOpen, NotebookPen, Instagram } from "lucide-react"
 import { useGameStats } from "@/hooks/use-game-stats"
 
 const UserShelf = () => {
@@ -90,6 +90,18 @@ const UserShelf = () => {
           <aside className="space-y-4">
             {profile && !stats.loading && (
               <ProfileCard profile={profile} stats={stats} />
+            )}
+
+            {profile?.ig && (
+              <a
+                href={`https://instagram.com/${profile.ig.replace(/^@/, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors"
+              >
+                <Instagram className="w-5 h-5 text-pink-500" />
+                <span className="text-sm font-medium">@{profile.ig.replace(/^@/, "")}</span>
+              </a>
             )}
 
             {notedBooks.length > 0 && (

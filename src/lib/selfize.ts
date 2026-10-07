@@ -154,6 +154,7 @@ export interface Profile {
   contact_type: 'ig' | 'line' | null
   contact_id: string | null
   city: string | null
+  ig: string | null
   created_at: string
   updated_at: string
 }

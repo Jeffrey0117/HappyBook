@@ -28,14 +28,15 @@ export function useProfile() {
 
       if (items.length > 0) {
         const existing = items[0]
+        // LetMeUse 沒頭貼時不要把自訂的 avatar_url 洗成 null
         const needsUpdate =
           existing.display_name !== user.displayName ||
-          existing.avatar_url !== (user.avatar || null)
+          (!!user.avatar && existing.avatar_url !== user.avatar)
 
         if (needsUpdate) {
           const updated = await selfize.update<Profile>('profiles', existing.id, {
             display_name: user.displayName,
-            avatar_url: user.avatar || null,
+            ...(user.avatar ? { avatar_url: user.avatar } : {}),
           })
           setProfile(updated)
         } else {

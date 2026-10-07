@@ -1,18 +1,13 @@
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { selfize, type BookWithOwner, type Book } from "@/lib/selfize"
+import { selfize, type BookWithOwner } from "@/lib/selfize"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
-import Footer from "@/components/Footer"
-import { BookCardSkeleton } from "@/components/ui/skeleton-loader"
-import { Search, BookOpen, BookMarked, Edit, FileText, Users } from "lucide-react"
+import { readCache, writeCache } from "@/lib/page-cache"
+import { Search, BookOpen, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
-import { useMyBooks } from "@/hooks/use-my-books"
-import { readCache, writeCache } from "@/lib/page-cache"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface GroupedBook {
   title: string
@@ -45,9 +40,7 @@ function groupBooksByTitle(
     const coverUrl = groupBooks.find((b) => b.cover_url)?.cover_url || null
     const author = groupBooks.find((b) => b.author)?.author || null
     const uniqueOwners = new Set(groupBooks.map((b) => b.owner_id))
-    const allTags = Array.from(
-      new Set(groupBooks.flatMap((b) => b.tags || []))
-    )
+    const allTags = Array.from(new Set(groupBooks.flatMap((b) => b.tags || [])))
     const ownBook = myProfileId
       ? groupBooks.find((b) => b.owner_id === myProfileId)
       : undefined
@@ -65,17 +58,41 @@ function groupBooksByTitle(
   return result
 }
 
+/** Netflix 式封面卡：橫滑列用固定寬，格狀用 fluid */
+const CoverCard = ({ group, fluid = false }: { group: GroupedBook; fluid?: boolean }) => {
+  const navigate = useNavigate()
+  return (
+    <button
+      onClick={() => navigate(`/book/${encodeURIComponent(group.title)}`)}
+      className={`group text-left shrink-0 ${fluid ? "w-full" : "w-28 sm:w-36"}`}
+      title={group.title}
+    >
+      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-neutral-800 shadow-lg transition-transform duration-200 group-hover:scale-[1.04] group-hover:shadow-2xl group-hover:z-10">
+        {group.cover_url ? (
+          <img src={group.cover_url} alt={group.title} loading="lazy" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center p-3 bg-gradient-to-br from-neutral-700 to-neutral-900">
+            <span className="text-sm text-neutral-300 font-medium text-center line-clamp-4">{group.title}</span>
+          </div>
+        )}
+      </div>
+      <p className="mt-1.5 text-sm text-neutral-200 line-clamp-1">{group.title}</p>
+      <p className="text-xs text-neutral-500 flex items-center gap-1">
+        <Users className="w-3 h-3" />
+        {group.ownerCount} 人擁有
+      </p>
+    </button>
+  )
+}
+
 const Browse = () => {
   const navigate = useNavigate()
   const { login, logout, isAuthenticated } = useAuth()
   const { profile } = useProfile()
-  const { books: myAllBooks } = useMyBooks(profile?.id)
   const [books, setBooks] = useState<BookWithOwner[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const [isSearching, setIsSearching] = useState(false)
 
   useEffect(() => {
     // 快取先上（秒出），背景再抓最新
@@ -95,7 +112,6 @@ const Browse = () => {
         limit: "500",
         expand: "owner_id",
       })
-
       setBooks(items)
       writeCache("browse_books", items)
     } catch (error) {
@@ -105,193 +121,208 @@ const Browse = () => {
     }
   }
 
-  const grouped = useMemo(
-    () => groupBooksByTitle(books, profile?.id),
-    [books, profile?.id]
-  )
+  const grouped = useMemo(() => groupBooksByTitle(books, profile?.id), [books, profile?.id])
 
   const allTags = useMemo(
     () => Array.from(new Set(grouped.flatMap((g) => g.tags))).sort(),
     [grouped]
   )
 
+  // 精選：有封面且最多人擁有的書
+  const featured = useMemo(() => {
+    const withCover = grouped.filter((g) => g.cover_url)
+    if (withCover.length === 0) return null
+    return [...withCover].sort((a, b) => b.ownerCount - a.ownerCount)[0]
+  }, [grouped])
+
+  // 分類橫滑列：書最多的標籤排前面
+  const tagRows = useMemo(() => {
+    const map = new Map<string, GroupedBook[]>()
+    for (const g of grouped) {
+      for (const t of g.tags) {
+        const list = map.get(t)
+        if (list) list.push(g)
+        else map.set(t, [g])
+      }
+    }
+    return [...map.entries()]
+      .filter(([, list]) => list.length >= 2)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 8)
+  }, [grouped])
+
+  const filtering = !!searchQuery.trim() || !!selectedTag
   const filteredGroups = useMemo(() => {
+    if (!filtering) return grouped
     return grouped.filter((group) => {
       const q = searchQuery.toLowerCase().trim()
-      if (!q && !selectedTag) return true
-
       const matchesSearch = q
         ? group.title.toLowerCase().includes(q) ||
           (group.author || "").toLowerCase().includes(q) ||
           group.tags.some((tag) => tag.toLowerCase().includes(q))
         : true
-
       const matchesTag = selectedTag ? group.tags.includes(selectedTag) : true
       return matchesSearch && matchesTag
     })
-  }, [grouped, searchQuery, selectedTag])
-
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value)
-    setIsSearching(true)
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
-    searchTimeoutRef.current = setTimeout(() => setIsSearching(false), 300)
-  }
+  }, [grouped, searchQuery, selectedTag, filtering])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
-      <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border shadow-sm">
-        <div className="max-w-screen-xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-              換書不可
-            </h1>
-            {isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                <Link to="/my">
-                  <Button variant="outline" size="sm">我的書架</Button>
-                </Link>
-                <Button variant="ghost" size="sm" onClick={logout}>登出</Button>
-              </div>
-            ) : (
-              <Button variant="outline" size="sm" onClick={login}>登入</Button>
-            )}
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜尋書名、作者或標籤..."
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {searchQuery && !isSearching && (
-            <div className="text-sm text-muted-foreground mt-2">
-              找到 {filteredGroups.length} 本可換的書
+    <div className="min-h-screen bg-neutral-950 pb-24">
+      {/* 頂欄 */}
+      <header className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-lg border-b border-neutral-800">
+        <div className="max-w-screen-xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <Link to="/" className="shrink-0">
+              <img src="/logo-happybook.png" alt="HappyBook" className="h-8" />
+            </Link>
+            <div className="relative flex-1 min-w-[160px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+              <Input
+                placeholder="搜尋書名、作者或標籤"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500"
+              />
             </div>
-          )}
+            <div className="shrink-0">
+              {isAuthenticated ? (
+                <Button variant="ghost" size="sm" onClick={logout} className="text-neutral-400 hover:text-white hover:bg-neutral-800">
+                  登出
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={login} className="border-neutral-700 bg-transparent text-white hover:bg-neutral-800 hover:text-white">
+                  登入
+                </Button>
+              )}
+            </div>
+          </div>
 
           {allTags.length > 0 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
-              <Badge
-                variant={selectedTag === null ? "default" : "outline"}
-                className="cursor-pointer whitespace-nowrap"
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+              <button
                 onClick={() => setSelectedTag(null)}
+                className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${selectedTag === null ? "bg-white text-neutral-950 font-medium" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`}
               >
                 全部
-              </Badge>
+              </button>
               {allTags.map((tag) => (
-                <Badge
+                <button
                   key={tag}
-                  variant={selectedTag === tag ? "default" : "outline"}
-                  className="cursor-pointer whitespace-nowrap"
-                  onClick={() => setSelectedTag(tag)}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${selectedTag === tag ? "bg-white text-neutral-950 font-medium" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`}
                 >
                   {tag}
-                </Badge>
+                </button>
               ))}
             </div>
           )}
         </div>
       </header>
 
-      <main className="max-w-screen-xl mx-auto px-4 py-6">
+      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-10">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <BookCardSkeleton key={i} />
+          /* 骨架：橫幅＋兩條封面列 */
+          <>
+            <div className="h-56 bg-neutral-900 animate-pulse rounded-2xl" />
+            {[1, 2].map((r) => (
+              <div key={r} className="space-y-3">
+                <div className="h-6 w-28 bg-neutral-900 animate-pulse rounded" />
+                <div className="flex gap-4">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="w-28 sm:w-36 shrink-0">
+                      <div className="aspect-[2/3] bg-neutral-900 animate-pulse rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
-          </div>
-        ) : filteredGroups.length === 0 ? (
-          <div className="text-center py-16 space-y-6">
-            <BookOpen className="h-20 w-20 mx-auto text-muted-foreground/50" />
-            <p className="text-xl font-medium text-muted-foreground">
-              {searchQuery || selectedTag ? "找不到符合的書籍" : "還沒有人上架書籍"}
-            </p>
+          </>
+        ) : filtering ? (
+          /* 搜尋／篩選：封面格狀 */
+          filteredGroups.length === 0 ? (
+            <div className="text-center py-20 text-neutral-500">
+              <BookOpen className="h-16 w-16 mx-auto mb-4 opacity-40" />
+              <p className="text-lg">找不到符合的書籍</p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-neutral-500 mb-4">找到 {filteredGroups.length} 本書</p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                {filteredGroups.map((g) => (
+                  <CoverCard key={g.title} group={g} fluid />
+                ))}
+              </div>
+            </div>
+          )
+        ) : grouped.length === 0 ? (
+          <div className="text-center py-20 text-neutral-500">
+            <BookOpen className="h-16 w-16 mx-auto mb-4 opacity-40" />
+            <p className="text-lg">還沒有人上架書籍</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredGroups.map((group) => (
-              <Card
-                key={group.title}
-                className="group hover:shadow-md transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-                onClick={() => navigate(`/book/${encodeURIComponent(group.title)}`)}
+          <>
+            {/* 精選橫幅 */}
+            {featured && (
+              <section
+                className="relative rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 cursor-pointer group"
+                onClick={() => navigate(`/book/${encodeURIComponent(featured.title)}`)}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg font-bold line-clamp-2 group-hover:text-primary transition-colors">
-                        {group.title}
-                      </CardTitle>
-                      {group.author && (
-                        <p className="text-sm text-muted-foreground mt-1">{group.author}</p>
-                      )}
-                    </div>
-                    {group.cover_url ? (
-                      <img
-                        src={group.cover_url}
-                        alt={group.title}
-                        className="w-12 h-16 object-cover rounded flex-shrink-0"
-                      />
-                    ) : (
-                      <BookMarked className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                {featured.cover_url && (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center opacity-20 blur-2xl scale-110"
+                    style={{ backgroundImage: `url(${featured.cover_url})` }}
+                  />
+                )}
+                <div className="relative flex items-center gap-5 sm:gap-8 p-5 sm:p-8">
+                  {featured.cover_url && (
+                    <img
+                      src={featured.cover_url}
+                      alt={featured.title}
+                      className="w-28 sm:w-40 rounded-lg shadow-2xl shrink-0 transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs text-neutral-400 mb-2 tracking-widest">精選書籍</p>
+                    <h2 className="text-xl sm:text-3xl font-bold text-white leading-snug line-clamp-2">
+                      {featured.title}
+                    </h2>
+                    {featured.author && (
+                      <p className="text-neutral-400 mt-1">{featured.author}</p>
                     )}
+                    <p className="text-sm text-neutral-500 mt-3 flex items-center gap-1">
+                      <Users className="w-4 h-4" />
+                      {featured.ownerCount} 人擁有，點進去看筆記和心得
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default" className="gap-1">
-                      <Users className="h-3 w-3" />
-                      {group.ownerCount} 人擁有
-                    </Badge>
-                  </div>
-                  {group.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {group.tags.slice(0, 4).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs px-2 py-0.5">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {group.tags.length > 4 && (
-                        <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                          +{group.tags.length - 4}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                  {group.ownBookId && (
-                    <div className="pt-2 border-t flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => navigate(`/my/edit/${group.ownBookId}`)}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        編輯
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => navigate(`/my/review/${group.ownBookId}`)}
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        寫心得
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+              </section>
+            )}
+
+            {/* 最新上架 */}
+            <section>
+              <h2 className="text-lg font-bold text-white mb-3">最新上架</h2>
+              <div className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4">
+                {grouped.slice(0, 12).map((g) => (
+                  <CoverCard key={g.title} group={g} />
+                ))}
+              </div>
+            </section>
+
+            {/* 分類橫滑列 */}
+            {tagRows.map(([tag, list]) => (
+              <section key={tag}>
+                <h2 className="text-lg font-bold text-white mb-3">{tag}</h2>
+                <div className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4">
+                  {list.map((g) => (
+                    <CoverCard key={`${tag}-${g.title}`} group={g} />
+                  ))}
+                </div>
+              </section>
             ))}
-          </div>
+          </>
         )}
       </main>
 
-      <Footer />
       <Navigation />
     </div>
   )

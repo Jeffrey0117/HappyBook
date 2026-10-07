@@ -341,7 +341,18 @@ const BookDetail = () => {
 
             {/* Reviews section */}
             <section className="space-y-4">
-              <h3 className="text-lg font-semibold">心得</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-lg font-semibold">心得</h3>
+                {profile && books.some((b) => b.owner_id === profile.id) && !reviews.some((r) => r.user_id === profile.id) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/my/review/${books.find((b) => b.owner_id === profile.id)!.id}`)}
+                  >
+                    <FileText className="h-3 w-3 mr-1" />寫心得
+                  </Button>
+                )}
+              </div>
               {reviewsLoading ? (
                 <div className="space-y-3">
                   {[1, 2].map((i) => (
@@ -567,15 +578,9 @@ const BookDetail = () => {
                             </p>
                           </div>
                           {isOwnBook ? (
-                            <div className="flex gap-1.5">
-                              <Button size="sm" variant="outline" onClick={() => navigate(`/my/edit/${book.id}`)}>
-                                <Edit className="h-3 w-3 mr-1" />編輯
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => navigate(`/my/review/${book.id}`)}>
-                                <FileText className="h-3 w-3 mr-1" />
-                                {reviews.some((r) => r.user_id === profile?.id) ? "編輯心得" : "寫心得"}
-                              </Button>
-                            </div>
+                            <Button size="sm" variant="outline" onClick={() => navigate(`/my/edit/${book.id}`)}>
+                              <Edit className="h-3 w-3 mr-1" />編輯
+                            </Button>
                           ) : (
                             <Button size="sm" variant="outline" onClick={() => handleSwapRequest(book)}>
                               <ArrowLeftRight className="h-3 w-3 mr-1" />跟他換

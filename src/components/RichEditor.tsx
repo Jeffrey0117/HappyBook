@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
+import { TextSelection } from "@tiptap/pm/state"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import { TextStyle } from "@tiptap/extension-text-style"
@@ -65,18 +66,19 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
       .chain()
       .focus()
       .command(({ tr, state }) => {
-        const { $from, $to } = state.selection
-        if ($from.parent !== $to.parent) return true
+        const { $from } = state.selection
         const parent = $from.parent
         if (parent.type.name !== "paragraph") return true
         const start = $from.start()
+        // 行邊界只看「游標所在行」——不管選取拖了多遠（拖過行尾會把換行拖進
+        // 選取範圍，之前就是這樣害下一行跟著變）
         let prevBr = -1
         let nextBr = -1
         parent.forEach((node, offset) => {
           const pos = start + offset
           if (node.type.name === "hardBreak") {
-            if (pos + 1 <= $from.pos && pos > prevBr) prevBr = pos
-            if (pos >= $to.pos && nextBr === -1) nextBr = pos
+            if (pos < $from.pos && pos > prevBr) prevBr = pos
+            if (pos >= $from.pos && nextBr === -1) nextBr = pos
           }
         })
         // 先切後面的（位置才不會被前面的操作位移）
@@ -88,6 +90,9 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
           tr.delete(prevBr, prevBr + 1)
           tr.split(prevBr)
         }
+        // 游標收斂進目標行，確保字級只套在這一行
+        const mapped = tr.mapping.map($from.pos)
+        tr.setSelection(TextSelection.create(tr.doc, mapped))
         return true
       })
       .toggleHeading({ level })

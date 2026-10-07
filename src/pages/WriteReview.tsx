@@ -193,9 +193,13 @@ const WriteReview = () => {
             <Button variant="ghost" size="sm" onClick={() => navigate("/my")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-xl font-bold">
+            <h1 className="text-xl font-bold flex-1 truncate">
               {existingReview ? "編輯心得" : "寫心得"}
             </h1>
+            <Button onClick={handleSubmit} disabled={submitting || !content.trim()}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {existingReview ? "更新" : "發表"}
+            </Button>
           </div>
         </div>
       </header>
@@ -320,15 +324,6 @@ const WriteReview = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleSubmit}
-          disabled={submitting || !content.trim()}
-          className="w-full"
-          size="lg"
-        >
-          {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {existingReview ? "更新心得" : "發表心得"}
-        </Button>
       </main>
 
       <Navigation />

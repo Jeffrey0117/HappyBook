@@ -4,7 +4,7 @@ import { selfize, selfizeUser, type Book, type ReadingRecord, type Highlight } f
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import SourceHighlighter from "@/components/SourceHighlighter"
-import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn, ChevronDown, ChevronUp, Sparkles } from "lucide-react"
+import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn, ChevronDown, ChevronUp, Sparkles, Globe, Lock, Eye, EyeOff, Library } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -15,6 +15,7 @@ const ReadingRecords = () => {
   const [books, setBooks] = useState<Record<string, Book>>({})
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [hideMarks, setHideMarks] = useState(false) // 展演模式：先給大家看乾淨原文
 
   const cacheKey = user ? `hb_records_cache_${user.id}` : null
 
@@ -70,6 +71,21 @@ const ReadingRecords = () => {
     }
   }
 
+  const handleVisibility = async (rec: ReadingRecord) => {
+    const next = rec.visibility === "public" ? "private" : "public"
+    const updatedRecords = records.map((r) => (r.id === rec.id ? { ...r, visibility: next } : r))
+    setRecords(updatedRecords)
+    if (cacheKey) {
+      try { localStorage.setItem(cacheKey, JSON.stringify({ records: updatedRecords, books })) } catch {}
+    }
+    try {
+      await selfizeUser.update("reading_records", rec.id, { visibility: next })
+      toast.success(next === "public" ? "已公開：這筆會以引句＋批註出現在你的書牆" : "已設為私人")
+    } catch (error) {
+      toast.error("切換失敗，再試一次")
+    }
+  }
+
   const handleDelete = async (id: string) => {
     if (!confirm("刪除這筆閱讀紀錄？")) return
     try {
@@ -101,6 +117,11 @@ const ReadingRecords = () => {
             <ArrowLeft className="w-4 h-4 mr-1" /> 我的書架
           </button>
           <div className="flex gap-2">
+            {user && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/shelf/${user.id}`}><Library className="w-4 h-4 mr-1" />公開書牆</Link>
+              </Button>
+            )}
             <Button variant="outline" size="sm" asChild>
               <Link to="/ask"><MessageCircleQuestion className="w-4 h-4 mr-1" />問我的書</Link>
             </Button>
@@ -111,7 +132,7 @@ const ReadingRecords = () => {
         </div>
         <h1 className="text-2xl font-bold mb-1">閱讀紀錄</h1>
         <p className="text-sm text-muted-foreground mb-6">
-          私人資料庫：書頁原文、你的心得——只有你自己與 AI 討論室看得到。
+          預設私人（原文與心得只有你和 AI 討論室看得到）；設為公開的紀錄會以「引句＋批註」出現在你的公開書牆。
         </p>
 
         {loading ? (
@@ -141,9 +162,18 @@ const ReadingRecords = () => {
                       </div>
                     )}
                   </div>
-                  <button onClick={() => handleDelete(rec.id)} className="text-muted-foreground hover:text-destructive shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleVisibility(rec)}
+                      className={rec.visibility === "public" ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+                      title={rec.visibility === "public" ? "公開中（點擊改為私人）" : "私人（點擊公開到書牆）"}
+                    >
+                      {rec.visibility === "public" ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => handleDelete(rec.id)} className="text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 {expandedId === rec.id ? (
                   <>
@@ -158,17 +188,27 @@ const ReadingRecords = () => {
                     ) : null}
                     {rec.source_text ? (
                       <div className="mt-3 border-t border-border pt-3">
-                        <p className="text-xs text-muted-foreground mb-2">
-                          選取文字：螢光筆／底線／批註。分類：
-                          <span className="text-green-600 dark:text-green-400 font-medium">＋正例</span>
-                          <span className="text-red-600 dark:text-red-400 font-medium">−反例</span>
-                          <span className="text-blue-600 dark:text-blue-400 font-medium">★核心</span>
-                          <span className="text-purple-600 dark:text-purple-400 font-medium">⚑立場</span>
-                        </p>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <p className="text-xs text-muted-foreground">
+                            選取文字：螢光筆／底線／批註。分類：
+                            <span className="text-purple-600 dark:text-purple-400 font-medium">⚑立場</span>
+                            <span className="text-blue-600 dark:text-blue-400 font-medium">★核心</span>
+                            <span className="text-green-600 dark:text-green-400 font-medium">＋正例</span>
+                            <span className="text-red-600 dark:text-red-400 font-medium">−反例</span>
+                          </p>
+                          <button
+                            onClick={() => setHideMarks(!hideMarks)}
+                            className="flex items-center gap-1 text-xs text-primary shrink-0"
+                          >
+                            {hideMarks ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            {hideMarks ? "顯示標註" : "隱藏標註（展演）"}
+                          </button>
+                        </div>
                         <SourceHighlighter
                           text={rec.source_text}
                           highlights={rec.highlights || []}
                           onChange={(next) => handleHighlights(rec, next)}
+                          showMarks={!hideMarks}
                         />
                       </div>
                     ) : null}

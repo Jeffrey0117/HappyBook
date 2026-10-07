@@ -19,6 +19,8 @@ try {
 const PORT = process.env.PORT || 4048;
 const DIST = path.join(__dirname, 'dist');
 const OPENAI_KEY = process.env.OPENAI_API_KEY || '';
+const SELFIZE_TOKEN = process.env.SELFIZE_TOKEN || '';
+const LMU_APP_ID = process.env.LMU_APP_ID || 'app_HB2026swap';
 const SELFIZE_URL = (process.env.SELFIZE_URL || 'https://selfize.isnowfriend.com').replace(/\/$/, '');
 const LMU_URL = (process.env.LETMEUSE_URL || 'https://letmeuse.isnowfriend.com').replace(/\/$/, '');
 
@@ -234,14 +236,63 @@ async function handleAsk(req, res) {
   }
 }
 
+/* ---------- /api/public/records：公開書牆（引句＋批註模式；全文只在伺服器端，絕不回傳） ---------- */
+async function handlePublicRecords(req, res, searchParams) {
+  const user = String(searchParams.get('user') || '');
+  if (!/^usr_[A-Za-z0-9]+$/.test(user)) return sendJson(res, 400, { error: 'user 參數不對' });
+  if (!SELFIZE_TOKEN) return sendJson(res, 503, { error: '公開書牆尚未設定' });
+  try {
+    const owner = LMU_APP_ID + ':' + user;
+    const r = await fetch(SELFIZE_URL + '/api/collections/reading_records/records?perPage=200&sort=-created_at', {
+      headers: { Authorization: 'Bearer ' + SELFIZE_TOKEN },
+    });
+    const data = await r.json();
+    if (!r.ok) return sendJson(res, 502, { error: '讀取失敗' });
+    const parse = (v, fb) => {
+      try { return typeof v === 'string' ? JSON.parse(v) : (v == null ? fb : v); } catch (e) { return fb; }
+    };
+    const records = (data.items || [])
+      .filter((rec) => rec._owner === owner && rec.visibility === 'public')
+      .map((rec) => {
+        const text = rec.source_text || '';
+        const hls = parse(rec.highlights, []) || [];
+        const slice = (h) => text.slice(Math.max(0, h.s || 0), Math.min(text.length, h.e || 0));
+        return {
+          id: rec.id,
+          book_id: rec.book_id,
+          chapter: rec.chapter || '',
+          pages: rec.pages || '',
+          ai_summary: rec.ai_summary || '',
+          my_note: rec.my_note || '',
+          topic_tags: parse(rec.topic_tags, []) || [],
+          created_at: rec.created_at,
+          quotes: hls
+            .filter((h) => h.k === 'hl' || h.k === 'ul')
+            .map((h) => ({ k: h.k, c: h.c || 'y', text: slice(h) }))
+            .filter((q) => q.text.trim()),
+          notes: hls
+            .filter((h) => h.k === 'note')
+            .map((h) => ({ text: slice(h), note: h.t || '' }))
+            .filter((n) => n.note.trim()),
+        };
+      });
+    sendJson(res, 200, { records });
+  } catch (err) {
+    console.error('public records error:', err.message);
+    sendJson(res, 502, { error: '讀取失敗' });
+  }
+}
+
 /* ---------- server ---------- */
 http
   .createServer(async (req, res) => {
     try {
-      const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+      const reqUrl = new URL(req.url, 'http://x');
+      const p = decodeURIComponent(reqUrl.pathname);
       if (req.method === 'POST' && p === '/api/ocr') return await handleOcr(req, res);
       if (req.method === 'POST' && p === '/api/summarize') return await handleSummarize(req, res);
       if (req.method === 'POST' && p === '/api/ask') return await handleAsk(req, res);
+      if (req.method === 'GET' && p === '/api/public/records') return await handlePublicRecords(req, res, reqUrl.searchParams);
 
       let file = path.normalize(path.join(DIST, p));
       if (file !== DIST && !file.startsWith(DIST + path.sep)) {

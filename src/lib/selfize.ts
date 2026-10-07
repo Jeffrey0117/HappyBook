@@ -75,6 +75,7 @@ export interface ReadingRecord {
   topic_tags: string[] | null
   images: string[] | null
   highlights: Highlight[] | null
+  visibility: 'private' | 'public' | null
   created_at: string
   updated_at: string
 }

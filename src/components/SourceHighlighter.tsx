@@ -37,6 +37,8 @@ interface SourceHighlighterProps {
   text: string
   highlights: Highlight[]
   onChange: (next: Highlight[]) => void
+  /** 展演模式：false = 隱藏所有標註與目錄、停用標註互動，只留排版後的乾淨原文 */
+  showMarks?: boolean
 }
 
 const genId = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36)
@@ -163,7 +165,9 @@ function buildSegments(text: string, hls: Highlight[], lineStyles: LineStyle[]):
   return segs
 }
 
-const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProps) => {
+const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMarks = true }: SourceHighlighterProps) => {
+  // 展演模式下用空陣列渲染（乾淨原文），但 onChange 永遠以真實資料為基底，避免覆寫
+  const highlights = showMarks ? realHighlights : []
   const containerRef = useRef<HTMLDivElement>(null)
   const [toolbar, setToolbar] = useState<ToolbarState | null>(null)
   const [notePanel, setNotePanel] = useState<NotePanelState | null>(null)
@@ -202,9 +206,10 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
   }, [readSelection, highlights])
 
   const handlePointerUp = useCallback(() => {
+    if (!showMarks) return // 展演模式不開標註工具
     // 等瀏覽器把 selection 定下來再讀（行動裝置尤其需要）
     setTimeout(openToolbarFromSelection, 60)
-  }, [openToolbarFromSelection])
+  }, [openToolbarFromSelection, showMarks])
 
   const applyStyle = useCallback(
     (kind: "hl" | "ul" | "erase", color?: HighlightColor) => {

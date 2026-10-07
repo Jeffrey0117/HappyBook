@@ -14,6 +14,11 @@
     <meta property="og:image" content="https://happybook.isnowfriend.com/logo-happybook.png" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      try {
+        if (localStorage.getItem("hb_theme") === "dark") document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
     <script
       src="https://letmeuse.isnowfriend.com/letmeuse.js"
       data-app-id="app_HB2026swap"

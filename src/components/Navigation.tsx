@@ -1,5 +1,6 @@
+import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Home, BookOpen, Plus, PenLine, NotebookPen } from "lucide-react"
+import { Home, BookOpen, Plus, PenLine, NotebookPen, Sun, Moon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
@@ -10,6 +11,16 @@ const Navigation = () => {
   const { isAuthenticated } = useAuth()
   const { profile } = useProfile()
   const { pendingCount } = useSwapRequests(isAuthenticated ? profile?.id : undefined)
+  const [dark, setDark] = useState(
+    () => typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+  )
+
+  const toggleTheme = () => {
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle("dark", next)
+    try { localStorage.setItem("hb_theme", next ? "dark" : "light") } catch {}
+  }
 
   // 四格常駐：未登入點「紀錄／書架」會由頁面自己引導登入
   const navItems = [
@@ -51,6 +62,15 @@ const Navigation = () => {
             </Link>
           )
         })}
+        <div className="w-px h-7 bg-neutral-800 mx-0.5" />
+        <button
+          onClick={toggleTheme}
+          className="flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-full text-neutral-400 hover:text-white transition-colors"
+          aria-label="切換深淺色"
+        >
+          {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          <span className="text-[11px] font-medium whitespace-nowrap">{dark ? "淺色" : "深色"}</span>
+        </button>
       </div>
     </nav>
   )

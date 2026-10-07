@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Markdown } from "tiptap-markdown"
 import { Bold, Italic, Quote, List, ListOrdered } from "lucide-react"
+import { mdToEditor, mdFromEditor } from "@/lib/markdown"
 
 interface RichEditorProps {
   value: string
@@ -22,10 +23,10 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
       Placeholder.configure({ placeholder: placeholder || "開始寫…" }),
       Markdown.configure({ breaks: true }),
     ],
-    content: value,
+    content: mdToEditor(value),
     onUpdate: ({ editor }) => {
-      // 反斜線硬斷行正規化成一般換行，存進 DB 的 Markdown 保持乾淨
-      const md = (editor.storage as any).markdown.getMarkdown().replace(/\\\n/g, "\n")
+      // 正規化硬斷行＋還原多餘空行，存進 DB 的 Markdown 跟使用者打的一致
+      const md = mdFromEditor((editor.storage as any).markdown.getMarkdown())
       internalMd.current = md
       onChange(md)
     },
@@ -41,7 +42,7 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
     if (!editor) return
     if (value !== internalMd.current && !editor.isFocused) {
       internalMd.current = value
-      editor.commands.setContent(value)
+      editor.commands.setContent(mdToEditor(value))
     }
   }, [value, editor])
 

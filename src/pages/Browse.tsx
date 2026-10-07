@@ -11,6 +11,7 @@ import { Search, BookOpen, BookMarked, Edit, FileText, Users } from "lucide-reac
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { useMyBooks } from "@/hooks/use-my-books"
+import { readCache, writeCache } from "@/lib/page-cache"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface GroupedBook {
@@ -77,6 +78,12 @@ const Browse = () => {
   const [isSearching, setIsSearching] = useState(false)
 
   useEffect(() => {
+    // 快取先上（秒出），背景再抓最新
+    const cached = readCache<BookWithOwner[]>("browse_books")
+    if (cached) {
+      setBooks(cached)
+      setLoading(false)
+    }
     fetchBooks()
   }, [])
 
@@ -90,6 +97,7 @@ const Browse = () => {
       })
 
       setBooks(items)
+      writeCache("browse_books", items)
     } catch (error) {
       // silently fail
     } finally {
@@ -191,7 +199,7 @@ const Browse = () => {
       </header>
 
       <main className="max-w-screen-xl mx-auto px-4 py-6">
-        {loading || isSearching ? (
+        {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <BookCardSkeleton key={i} />

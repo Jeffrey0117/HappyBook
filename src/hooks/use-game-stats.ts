@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { selfize, type Book, type Swap, type SwapRequest } from '@/lib/selfize'
 import { XP_RULES, BADGES, getLevelInfo, type BadgeDef } from '@/lib/game-config'
+import { readCache, writeCache } from '@/lib/page-cache'
 
 export interface GameStats {
   xp: number
@@ -28,18 +29,38 @@ export function useGameStats(profileId: string | undefined): GameStats {
       return
     }
 
-    const fetchData = async () => {
-      const [booksRes, swapsRes, reqAsRequester, reqAsOwner] = await Promise.all([
-        selfize.list<Book>('books', { owner_id: profileId, limit: '500' }),
-        selfize.list<Swap>('swaps', { lender_id: profileId, limit: '500' }),
-        selfize.list<SwapRequest>('swap_requests', { requester_id: profileId, status: 'completed', limit: '500' }),
-        selfize.list<SwapRequest>('swap_requests', { owner_id: profileId, status: 'completed', limit: '500' }),
-      ])
-
-      setBooks(booksRes.items)
-      setSwaps(swapsRes.items)
-      setSwapRequests([...reqAsRequester.items, ...reqAsOwner.items])
+    // 快取先上（秒出），背景再抓最新
+    const cached = readCache<{ books: Book[]; swaps: Swap[]; swapRequests: SwapRequest[] }>(`stats_${profileId}`)
+    if (cached) {
+      setBooks(cached.books)
+      setSwaps(cached.swaps)
+      setSwapRequests(cached.swapRequests)
       setLoading(false)
+    }
+
+    const fetchData = async () => {
+      try {
+        const [booksRes, swapsRes, reqAsRequester, reqAsOwner] = await Promise.all([
+          selfize.list<Book>('books', { owner_id: profileId, limit: '500' }),
+          selfize.list<Swap>('swaps', { lender_id: profileId, limit: '500' }),
+          selfize.list<SwapRequest>('swap_requests', { requester_id: profileId, status: 'completed', limit: '500' }),
+          selfize.list<SwapRequest>('swap_requests', { owner_id: profileId, status: 'completed', limit: '500' }),
+        ])
+
+        const fresh = {
+          books: booksRes.items,
+          swaps: swapsRes.items,
+          swapRequests: [...reqAsRequester.items, ...reqAsOwner.items],
+        }
+        setBooks(fresh.books)
+        setSwaps(fresh.swaps)
+        setSwapRequests(fresh.swapRequests)
+        writeCache(`stats_${profileId}`, fresh)
+      } catch {
+        // 有快取就撐著
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchData()

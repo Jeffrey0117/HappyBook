@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom"
 import { selfize, type Book, type Profile } from "@/lib/selfize"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
 import Navigation from "@/components/Navigation"
-import { Loader2, BookOpen, ArrowLeft, Instagram } from "lucide-react"
+import { readCache, writeCache } from "@/lib/page-cache"
+import { BookOpen, ArrowLeft, Instagram } from "lucide-react"
 
 const PublicShelf = () => {
   const { userId } = useParams()
@@ -15,6 +16,15 @@ const PublicShelf = () => {
 
   useEffect(() => {
     if (!userId) return
+    // 快取先上（秒出），背景再抓最新
+    const cached = readCache<{ records: PublicRecord[]; books: Record<string, Book>; profile: Profile | null }>(`pubshelf_${userId}`)
+    if (cached) {
+      setRecords(cached.records)
+      setBooks(cached.books)
+      setProfile(cached.profile)
+      if (cached.records.length > 0) setActiveBook(cached.records[0].book_id)
+      setLoading(false)
+    }
     const load = async () => {
       try {
         const [recRes, bookList, profList] = await Promise.all([
@@ -28,7 +38,8 @@ const PublicShelf = () => {
         for (const b of bookList.items) map[b.id] = b
         setBooks(map)
         setProfile(profList.items[0] || null)
-        if (recs.length > 0) setActiveBook(recs[0].book_id)
+        setActiveBook((prev) => prev || (recs.length > 0 ? recs[0].book_id : null))
+        writeCache(`pubshelf_${userId}`, { records: recs, books: map, profile: profList.items[0] || null })
       } catch {
         // 公開頁載入失敗就顯示空狀態
       } finally {
@@ -66,7 +77,18 @@ const PublicShelf = () => {
         <div className="mb-4" />
 
         {loading ? (
-          <div className="flex justify-center pt-16"><Loader2 className="w-6 h-6 animate-spin" /></div>
+          /* 骨架跟實際版型同構：封面列＋筆記卡 */
+          <div>
+            <div className="flex gap-3 pb-3 mb-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="w-24 h-40 bg-muted animate-pulse rounded-lg shrink-0" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              <div className="h-48 bg-muted animate-pulse rounded-xl" />
+              <div className="h-32 bg-muted animate-pulse rounded-xl" />
+            </div>
+          </div>
         ) : records.length === 0 ? (
           <div className="text-center pt-12 text-muted-foreground">
             <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-40" />

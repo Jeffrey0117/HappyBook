@@ -7,6 +7,7 @@ import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
 import { ArrowLeft, BookOpen, NotebookPen, Instagram } from "lucide-react"
 import { useGameStats } from "@/hooks/use-game-stats"
+import { readCache, writeCache } from "@/lib/page-cache"
 
 const UserShelf = () => {
   const { id } = useParams()
@@ -18,21 +19,28 @@ const UserShelf = () => {
   const stats = useGameStats(id)
 
   useEffect(() => {
+    // 快取先上（秒出），背景再抓最新
+    const cached = readCache<{ profile: Profile; books: Book[]; noteCounts: Record<string, number> }>(`usershelf_${id}`)
+    if (cached) {
+      setProfile(cached.profile)
+      setBooks(cached.books)
+      setNoteCounts(cached.noteCounts || {})
+      setLoading(false)
+    }
     fetchUserData()
   }, [id])
 
   const fetchUserData = async () => {
     try {
-      const profileData = await selfize.get<Profile>("profiles", id!)
+      // profile 和書單平行抓
+      const [profileData, { items }] = await Promise.all([
+        selfize.get<Profile>("profiles", id!),
+        selfize.list<Book>("books", { owner_id: id!, sort: "-created_at", limit: "500" }),
+      ])
       setProfile(profileData)
-
-      const { items } = await selfize.list<Book>("books", {
-        owner_id: id!,
-        sort: "-created_at",
-        limit: "500",
-      })
       setBooks(items)
-      fetchNoteCounts(profileData.user_id)
+      const counts = await fetchNoteCounts(profileData.user_id)
+      writeCache(`usershelf_${id}`, { profile: profileData, books: items, noteCounts: counts })
     } catch (error) {
       // silently fail
     } finally {
@@ -40,18 +48,20 @@ const UserShelf = () => {
     }
   }
 
-  const fetchNoteCounts = async (userId: string) => {
+  const fetchNoteCounts = async (userId: string): Promise<Record<string, number>> => {
     try {
       const res = await fetch(`/api/public/records?user=${encodeURIComponent(userId)}`)
       const data = await res.json()
-      if (!res.ok) return
+      if (!res.ok) return {}
       const counts: Record<string, number> = {}
       for (const rec of data.records || []) {
         counts[rec.book_id] = (counts[rec.book_id] || 0) + 1
       }
       setNoteCounts(counts)
+      return counts
     } catch (error) {
       // 筆記提示載入失敗不影響書架
+      return {}
     }
   }
 
@@ -88,8 +98,10 @@ const UserShelf = () => {
           </div>
 
           <aside className="space-y-4">
-            {profile && !stats.loading && (
-              <ProfileCard profile={profile} stats={stats} />
+            {profile && (
+              stats.loading
+                ? <div className="h-44 bg-muted animate-pulse rounded-xl" />
+                : <ProfileCard profile={profile} stats={stats} />
             )}
 
             {profile?.ig && (

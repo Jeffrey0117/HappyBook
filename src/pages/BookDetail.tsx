@@ -21,6 +21,7 @@ import {
   User,
 } from "lucide-react"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
+import { readCache, writeCache } from "@/lib/page-cache"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { useMyBooks } from "@/hooks/use-my-books"
@@ -46,10 +47,27 @@ const BookDetail = () => {
   const [reviews, setReviews] = useState<ReviewExpanded[]>([])
   const [loading, setLoading] = useState(true)
   const [reviewsLoading, setReviewsLoading] = useState(true)
+  const [notesLoading, setNotesLoading] = useState(true)
   const [swapTarget, setSwapTarget] = useState<BookWithOwner | null>(null)
 
   useEffect(() => {
     if (decodedTitle) {
+      // 快取先上（秒出整頁），背景再抓最新
+      const cb = readCache<BookWithOwner[]>(`book_${decodedTitle}_books`)
+      if (cb) {
+        setBooks(cb)
+        setLoading(false)
+      }
+      const cr = readCache<ReviewExpanded[]>(`book_${decodedTitle}_reviews`)
+      if (cr) {
+        setReviews(cr)
+        setReviewsLoading(false)
+      }
+      const cn = readCache<PublicRecord[]>(`book_${decodedTitle}_notes`)
+      if (cn) {
+        setPublicNotes(cn)
+        setNotesLoading(false)
+      }
       fetchBooks()
       fetchReviews()
     }
@@ -68,6 +86,7 @@ const BookDetail = () => {
         (b) => b.title.toLowerCase().trim() === decodedTitle.toLowerCase().trim()
       )
       setBooks(matched)
+      writeCache(`book_${decodedTitle}_books`, matched)
       fetchPublicNotes(matched.map((b) => b.id))
     } catch (error) {
       toast.error("無法載入書籍資料")
@@ -77,13 +96,21 @@ const BookDetail = () => {
   }
 
   const fetchPublicNotes = async (bookIds: string[]) => {
-    if (bookIds.length === 0) return
+    if (bookIds.length === 0) {
+      setNotesLoading(false)
+      return
+    }
     try {
       const res = await fetch(`/api/public/records?book=${bookIds.join(",")}`)
       const data = await res.json()
-      if (res.ok) setPublicNotes(data.records || [])
+      if (res.ok) {
+        setPublicNotes(data.records || [])
+        writeCache(`book_${decodedTitle}_notes`, data.records || [])
+      }
     } catch (error) {
       // 公開筆記載入失敗不影響頁面其他部分
+    } finally {
+      setNotesLoading(false)
     }
   }
 
@@ -96,6 +123,7 @@ const BookDetail = () => {
         expand: "user_id",
       })
       setReviews(items)
+      writeCache(`book_${decodedTitle}_reviews`, items)
     } catch (error) {
       // silently fail
     } finally {
@@ -166,15 +194,25 @@ const BookDetail = () => {
 
       <main className="max-w-screen-xl mx-auto px-4 py-6">
         {loading ? (
-          <div className="space-y-4">
-            <div className="h-48 bg-muted animate-pulse rounded-xl" />
-            <div className="h-32 bg-muted animate-pulse rounded-xl" />
+          /* 骨架跟實際版型同構，載入完成不跳版 */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4 order-last lg:order-none">
+              <div className="h-44 bg-muted animate-pulse rounded-xl" />
+              <div className="h-64 bg-muted animate-pulse rounded-xl" />
+            </div>
+            <aside className="space-y-4">
+              <div className="h-72 bg-muted animate-pulse rounded-xl" />
+              <div className="h-40 bg-muted animate-pulse rounded-xl" />
+            </aside>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* 左大欄：讀者筆記＋心得（手機時排在書籍資訊後面） */}
             <div className="lg:col-span-2 space-y-8 order-last lg:order-none">
             {/* Public reading notes section */}
+            {notesLoading && publicNotes.length === 0 ? (
+              <div className="h-16 bg-muted animate-pulse rounded-xl" />
+            ) : null}
             {publicNotes.length > 0 && (
               <section className="space-y-4">
                 <h3 className="text-lg font-semibold">讀者筆記</h3>

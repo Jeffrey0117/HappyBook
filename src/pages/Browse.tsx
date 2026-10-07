@@ -162,12 +162,13 @@ const Browse = () => {
       {/* 頂欄 */}
       <header className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-lg border-b border-neutral-800">
         <div className="max-w-screen-xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <Link to="/" className="shrink-0 flex items-center gap-3">
-              <img src="/logo-happybook.png" alt="HappyBook" className="h-10 sm:h-12" />
+          <div className="flex items-center justify-between gap-3">
+            <Link to="/" className="shrink-0 flex items-center gap-2 sm:gap-3 min-w-0">
+              <img src="/logo-happybook.png" alt="HappyBook" className="h-10 sm:h-12 shrink-0" />
               <span className="text-lg sm:text-xl font-bold text-white whitespace-nowrap">換書不可</span>
             </Link>
-            <div className="relative flex-1 min-w-[160px] max-w-sm">
+            {/* 桌面：搜尋框在中間 */}
+            <div className="relative hidden md:block flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
               <Input
                 placeholder="搜尋書名、作者或標籤"
@@ -187,6 +188,16 @@ const Browse = () => {
                 </Button>
               )}
             </div>
+          </div>
+          {/* 手機：搜尋框自己一排，不跟 LOGO 擠 */}
+          <div className="relative md:hidden mt-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+            <Input
+              placeholder="搜尋書名、作者或標籤"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500"
+            />
           </div>
 
         </div>

@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react"
-import { Highlighter, Underline, Eraser, MessageSquarePlus, MessageSquare, Pencil, Trash2, X } from "lucide-react"
+import { Highlighter, Underline, Eraser, MessageSquarePlus, MessageSquare, Pencil, Trash2, X, List, ChevronDown, ChevronUp } from "lucide-react"
 import type { Highlight, HighlightColor } from "@/lib/selfize"
 
 /**
@@ -9,10 +9,10 @@ import type { Highlight, HighlightColor } from "@/lib/selfize"
  */
 export const HL_CATEGORIES: Record<HighlightColor, { label: string; sym: string; mark: string; dot: string; symClass: string }> = {
   y: { label: "重點", sym: "", mark: "bg-yellow-200 dark:bg-yellow-500/40", dot: "bg-yellow-400", symClass: "" },
-  g: { label: "正例", sym: "＋", mark: "bg-green-200 dark:bg-green-500/30", dot: "bg-green-500", symClass: "before:content-['＋'] text-green-600 dark:text-green-400" },
-  r: { label: "反例", sym: "−", mark: "bg-red-200 dark:bg-red-500/30", dot: "bg-red-500", symClass: "before:content-['−'] text-red-600 dark:text-red-400" },
-  b: { label: "核心", sym: "★", mark: "bg-blue-200 dark:bg-blue-500/30", dot: "bg-blue-500", symClass: "before:content-['★'] text-blue-600 dark:text-blue-400" },
-  p: { label: "立場", sym: "⚑", mark: "bg-purple-200 dark:bg-purple-500/30", dot: "bg-purple-500", symClass: "before:content-['⚑'] text-purple-600 dark:text-purple-400" },
+  g: { label: "正例", sym: "＋", mark: "bg-green-200 dark:bg-green-500/30", dot: "bg-green-500", symClass: "before:content-['＋'] bg-green-100 text-green-700 ring-1 ring-green-500/60 dark:bg-green-900/60 dark:text-green-300" },
+  r: { label: "反例", sym: "−", mark: "bg-red-200 dark:bg-red-500/30", dot: "bg-red-500", symClass: "before:content-['−'] bg-red-100 text-red-700 ring-1 ring-red-500/60 dark:bg-red-900/60 dark:text-red-300" },
+  b: { label: "核心", sym: "★", mark: "bg-blue-200 dark:bg-blue-500/30", dot: "bg-blue-500", symClass: "before:content-['★'] bg-blue-100 text-blue-700 ring-1 ring-blue-500/60 dark:bg-blue-900/60 dark:text-blue-300" },
+  p: { label: "立場", sym: "⚑", mark: "bg-purple-200 dark:bg-purple-500/30", dot: "bg-purple-500", symClass: "before:content-['⚑'] bg-purple-100 text-purple-700 ring-1 ring-purple-500/60 dark:bg-purple-900/60 dark:text-purple-300" },
 }
 
 interface ToolbarState {
@@ -107,6 +107,7 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
   const containerRef = useRef<HTMLDivElement>(null)
   const [toolbar, setToolbar] = useState<ToolbarState | null>(null)
   const [notePanel, setNotePanel] = useState<NotePanelState | null>(null)
+  const [outlineOpen, setOutlineOpen] = useState(false)
 
   const notes = highlights.filter((h) => h.k === "note")
 
@@ -242,8 +243,61 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
   const segments = buildSegments(text, highlights)
   const clampEnd = (n: number) => Math.max(0, Math.min(n, text.length))
 
+  // 標註目錄：所有標註按位置排序，點了跳到原文位置
+  const outline = [...highlights]
+    .sort((a, b) => a.s - b.s)
+    .map((h, i) => ({
+      key: h.id || `${h.k}-${h.s}-${i}`,
+      kind: h.k,
+      c: (h.c || "y") as HighlightColor,
+      label: h.k === "note" ? "批註" : h.k === "ul" ? "底線" : HL_CATEGORIES[h.c || "y"].label,
+      excerpt: h.k === "note" ? h.t || "" : text.slice(Math.max(0, h.s), Math.min(text.length, h.s + 24)),
+      pos: Math.max(0, Math.min(h.s, text.length)),
+    }))
+
+  const jumpTo = (pos: number) => {
+    document.getElementById(`annpos-${pos}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+    setOutlineOpen(false)
+  }
+
+  const outlineItems = outline.map((item) => (
+    <button
+      key={item.key}
+      onClick={() => jumpTo(item.pos)}
+      className="w-full text-left flex items-start gap-1.5 px-2 py-1.5 rounded-md hover:bg-muted text-xs"
+    >
+      {item.kind === "note" ? (
+        <MessageSquare className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+      ) : (
+        <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-0.5 ${item.kind === "ul" ? "bg-foreground/40" : HL_CATEGORIES[item.c].dot}`} />
+      )}
+      <span className="min-w-0">
+        <span className="text-muted-foreground">{item.label}</span>{" "}
+        <span className="line-clamp-2 break-all">{item.excerpt}</span>
+      </span>
+    </button>
+  ))
+
   return (
     <>
+      {outline.length > 0 && (
+        <div className="xl:hidden mb-2">
+          <button onClick={() => setOutlineOpen(!outlineOpen)} className="flex items-center gap-1 text-sm text-primary">
+            <List className="w-4 h-4" />
+            標註目錄（{outline.length}）
+            {outlineOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+          {outlineOpen && <div className="mt-1 border border-border rounded-lg p-1 space-y-0.5">{outlineItems}</div>}
+        </div>
+      )}
+      {outline.length > 0 && (
+        <div className="hidden xl:block fixed right-6 top-28 w-60 max-h-[65vh] overflow-y-auto bg-card border border-border rounded-xl p-2 shadow-sm z-40">
+          <p className="text-xs font-medium text-muted-foreground px-2 pb-1 flex items-center gap-1">
+            <List className="w-3.5 h-3.5" />標註目錄
+          </p>
+          <div className="space-y-0.5">{outlineItems}</div>
+        </div>
+      )}
       <div
         ref={containerRef}
         className="text-[15px] leading-7 whitespace-pre-line select-text"
@@ -260,7 +314,7 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
               <span
                 key={`s-${h.s}-${h.e}`}
                 aria-hidden
-                className={`text-xs align-super font-bold select-none mr-0.5 ${HL_CATEGORIES[h.c!].symClass}`}
+                className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold align-super -translate-y-1 mr-0.5 select-none ${HL_CATEGORIES[h.c!].symClass}`}
               />
             ))
           const endingNotes = notes.filter((n) => clampEnd(n.e) === seg.e)
@@ -278,12 +332,13 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
             </button>
           ))
           if (!seg.hlc && !seg.ul && !seg.noted) {
-            return [...startingSyms, <span key={seg.s}>{content}</span>, ...markers]
+            return [...startingSyms, <span key={seg.s} id={`annpos-${seg.s}`}>{content}</span>, ...markers]
           }
           return [
             ...startingSyms,
             <mark
               key={seg.s}
+              id={`annpos-${seg.s}`}
               onClick={(e) => handleMarkClick(seg, e)}
               className={[
                 "text-inherit cursor-pointer rounded-sm",

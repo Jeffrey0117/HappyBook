@@ -264,3 +264,9 @@ All colors MUST be HSL.
   padding-left: 1.5em;
   margin: 0.8em 0;
 }
+
+/* 閱讀行寬：別讓文字貼到卡片右緣（Medium 式 ~680px 可讀行長） */
+.prose-review {
+  max-width: 42rem;
+  padding-right: 0.5rem;
+}

@@ -174,14 +174,21 @@ const ReadingRecords = () => {
                   <p className={`text-sm mt-2 border-l-2 border-primary pl-2 whitespace-pre-line ${expandedId === rec.id ? "" : "line-clamp-2"}`}>💭 {rec.my_note}</p>
                 ) : null}
                 {rec.source_text || rec.ai_summary ? (
-                  <button
-                    onClick={() => setExpandedId(expandedId === rec.id ? null : rec.id)}
-                    className="mt-2 flex items-center gap-1 text-sm text-primary"
-                  >
-                    {expandedId === rec.id
-                      ? <><ChevronUp className="w-4 h-4" />收合</>
-                      : <><ChevronDown className="w-4 h-4" />閱讀全文</>}
-                  </button>
+                  <div className="mt-2 flex items-center gap-3">
+                    <button
+                      onClick={() => setExpandedId(expandedId === rec.id ? null : rec.id)}
+                      className="flex items-center gap-1 text-sm text-primary"
+                    >
+                      {expandedId === rec.id
+                        ? <><ChevronUp className="w-4 h-4" />收合</>
+                        : <><ChevronDown className="w-4 h-4" />閱讀全文</>}
+                    </button>
+                    {expandedId !== rec.id && (rec.highlights || []).filter((h) => h.k === "note").length > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        💬 {(rec.highlights || []).filter((h) => h.k === "note").length} 則批註
+                      </span>
+                    )}
+                  </div>
                 ) : null}
                 {(rec.images || []).length > 0 && (
                   <div className="flex gap-2 mt-2 overflow-x-auto">

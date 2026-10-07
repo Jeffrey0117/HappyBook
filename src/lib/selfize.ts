@@ -47,11 +47,13 @@ function lmuHeaders(): Record<string, string> {
   return t ? { authorization: `Bearer ${t}` } : {}
 }
 
-/** 原文標註：source_text 的字元區間 [s, e)，k = 螢光筆 | 底線 */
+/** 原文標註：source_text 的字元區間 [s, e)，k = 螢光筆 | 底線 | 批註（t = 批註內容，id 供編輯/刪除定位） */
 export interface Highlight {
   s: number
   e: number
-  k: 'hl' | 'ul'
+  k: 'hl' | 'ul' | 'note'
+  t?: string
+  id?: string
 }
 
 export interface ReadingRecord {

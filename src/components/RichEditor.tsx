@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
-import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react"
+import { useEditor, EditorContent } from "@tiptap/react"
+import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Markdown } from "tiptap-markdown"
@@ -77,7 +78,7 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
       </div>
 
       {/* Medium 式選取浮動工具列 */}
-      <BubbleMenu editor={editor} tippyOptions={{ duration: 120 }}>
+      <BubbleMenu editor={editor}>
         <div className="flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-lg px-1 py-1">
           <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btn(editor.isActive("bold"))}>
             <Bold className="w-4 h-4" />

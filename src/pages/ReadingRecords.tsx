@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { selfize, selfizeUser, type Book, type ReadingRecord } from "@/lib/selfize"
+import { selfize, selfizeUser, type Book, type ReadingRecord, type Highlight } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
+import SourceHighlighter from "@/components/SourceHighlighter"
 import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn, ChevronDown, ChevronUp, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
@@ -53,6 +54,19 @@ const ReadingRecords = () => {
       if (records.length === 0) toast.error("載入閱讀紀錄失敗")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleHighlights = async (rec: ReadingRecord, next: Highlight[]) => {
+    const updatedRecords = records.map((r) => (r.id === rec.id ? { ...r, highlights: next } : r))
+    setRecords(updatedRecords)
+    if (cacheKey) {
+      try { localStorage.setItem(cacheKey, JSON.stringify({ records: updatedRecords, books })) } catch {}
+    }
+    try {
+      await selfizeUser.update("reading_records", rec.id, { highlights: next })
+    } catch (error) {
+      toast.error("標註儲存失敗，再試一次")
     }
   }
 
@@ -133,8 +147,13 @@ const ReadingRecords = () => {
                 </div>
                 {rec.source_text ? (
                   expandedId === rec.id ? (
-                    <div className="mt-3 text-[15px] leading-7 whitespace-pre-line border-t border-border pt-3">
-                      {rec.source_text}
+                    <div className="mt-3 border-t border-border pt-3">
+                      <p className="text-xs text-muted-foreground mb-2">選取文字可以畫螢光筆或底線，點標註可以清除</p>
+                      <SourceHighlighter
+                        text={rec.source_text}
+                        highlights={rec.highlights || []}
+                        onChange={(next) => handleHighlights(rec, next)}
+                      />
                     </div>
                   ) : (
                     <p

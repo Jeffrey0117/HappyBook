@@ -47,6 +47,13 @@ function lmuHeaders(): Record<string, string> {
   return t ? { authorization: `Bearer ${t}` } : {}
 }
 
+/** 原文標註：source_text 的字元區間 [s, e)，k = 螢光筆 | 底線 */
+export interface Highlight {
+  s: number
+  e: number
+  k: 'hl' | 'ul'
+}
+
 export interface ReadingRecord {
   id: string
   book_id: string
@@ -58,6 +65,7 @@ export interface ReadingRecord {
   applied_note: string | null
   topic_tags: string[] | null
   images: string[] | null
+  highlights: Highlight[] | null
   created_at: string
   updated_at: string
 }

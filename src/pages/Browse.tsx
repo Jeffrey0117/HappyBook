@@ -198,7 +198,7 @@ const Browse = () => {
           </div>
 
           {allTags.length > 0 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+            <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1">
               <button
                 onClick={() => setSelectedTag(null)}
                 className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${selectedTag === null ? "bg-white text-neutral-950 font-medium" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`}
@@ -301,7 +301,7 @@ const Browse = () => {
             {/* 最新上架 */}
             <section>
               <h2 className="text-lg font-bold text-white mb-3">最新上架</h2>
-              <div className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4">
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4">
                 {grouped.slice(0, 12).map((g) => (
                   <CoverCard key={g.title} group={g} />
                 ))}
@@ -312,7 +312,7 @@ const Browse = () => {
             {tagRows.map(([tag, list]) => (
               <section key={tag}>
                 <h2 className="text-lg font-bold text-white mb-3">{tag}</h2>
-                <div className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4">
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4">
                   {list.map((g) => (
                     <CoverCard key={`${tag}-${g.title}`} group={g} />
                   ))}

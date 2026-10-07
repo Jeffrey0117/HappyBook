@@ -19,9 +19,10 @@ const Navigation = () => {
     { path: "/my", icon: BookOpen, label: "書架" },
   ]
 
+  // Netflix App 式底部分頁：深色半透明懸浮膠囊 dock，不貼死底邊、不卡內容
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
-      <div className="max-w-screen-xl mx-auto flex items-center h-16 sm:h-20 px-1 sm:px-4 gap-1">
+    <nav className="fixed bottom-3 inset-x-0 z-50 pointer-events-none">
+      <div className="pointer-events-auto mx-auto w-fit max-w-[94vw] flex items-center gap-1 bg-neutral-950/85 backdrop-blur-lg border border-neutral-800 rounded-full px-2 py-1.5 shadow-2xl">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = location.pathname === item.path ||
@@ -34,16 +35,16 @@ const Navigation = () => {
               key={item.path}
               to={item.path}
               className={cn(
-                "relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 rounded-lg transition-all min-h-[44px]",
+                "relative flex flex-col items-center justify-center gap-0.5 px-4 sm:px-5 py-1.5 rounded-full transition-colors min-w-[56px]",
                 isActive
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "text-white bg-white/15"
+                  : "text-neutral-400 hover:text-white"
               )}
             >
-              <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="text-xs sm:text-sm font-medium truncate max-w-full">{item.label}</span>
+              <Icon className="h-5 w-5" />
+              <span className="text-[11px] font-medium whitespace-nowrap">{item.label}</span>
               {showBadge && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1">
+                <span className="absolute -top-0.5 right-1 min-w-[16px] h-[16px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
                   {pendingCount}
                 </span>
               )}

@@ -209,3 +209,12 @@ All colors MUST be HSL.
   border-radius: 6px;
   margin: 1em 0;
 }
+
+/* 橫向捲動列：藏捲軸（Netflix 式，內容可滑但不露出粗捲軸） */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

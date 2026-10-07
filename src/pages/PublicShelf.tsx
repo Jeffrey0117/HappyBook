@@ -97,7 +97,7 @@ const PublicShelf = () => {
         ) : (
           <>
             {/* 書封面牆 */}
-            <div className="flex gap-3 overflow-x-auto pb-3 mb-4">
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-3 mb-4">
               {bookIds.map((id) => {
                 const b = books[id]
                 const count = records.filter((r) => r.book_id === id).length

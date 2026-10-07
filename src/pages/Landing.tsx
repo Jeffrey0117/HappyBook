@@ -86,16 +86,14 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* 封面牆跑馬燈：正在流通的書 */}
+      {/* 封面牆：正在流通的書（靜態，可手動滑） */}
       {covers.length >= 3 && (
-        <section className="relative overflow-hidden py-4">
-          <style>{`@keyframes hb-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+        <section className="relative py-4">
           <div
-            className="flex gap-4 w-max cursor-pointer"
-            style={{ animation: `hb-marquee ${Math.max(30, covers.length * 6)}s linear infinite` }}
+            className="flex gap-4 overflow-x-auto no-scrollbar px-6 cursor-pointer"
             onClick={() => navigate("/browse")}
           >
-            {[...covers, ...covers].map((url, i) => (
+            {covers.map((url, i) => (
               <img
                 key={i}
                 src={url}

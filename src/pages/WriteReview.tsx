@@ -165,9 +165,9 @@ const WriteReview = () => {
         )}
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <label className="text-sm font-medium">讀後心得</label>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap justify-end">
               <Button
                 type="button"
                 variant="outline"

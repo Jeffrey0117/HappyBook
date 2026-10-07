@@ -131,9 +131,9 @@ const MyShelf = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border shadow-sm">
         <div className="max-w-screen-xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">我的書架</h1>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold">我的書架</h1>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <Button variant="outline" onClick={() => navigate("/swaps/inbox")} className="relative">
                 <ArrowLeftRight className="h-4 w-4 mr-2" />
                 換書

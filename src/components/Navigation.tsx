@@ -24,7 +24,7 @@ const Navigation = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
-      <div className="max-w-screen-xl mx-auto flex justify-around items-center h-20 px-4">
+      <div className="max-w-screen-xl mx-auto flex items-center h-16 sm:h-20 px-1 sm:px-4 gap-1">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = location.pathname === item.path ||
@@ -37,14 +37,14 @@ const Navigation = () => {
               key={item.path}
               to={item.path}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-1 px-6 py-3 rounded-lg transition-all min-h-[44px] min-w-[44px]",
+                "relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 sm:gap-1 py-2 rounded-lg transition-all min-h-[44px]",
                 isActive
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Icon className="h-6 w-6" />
-              <span className="text-sm font-medium">{item.label}</span>
+              <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="text-xs sm:text-sm font-medium truncate max-w-full">{item.label}</span>
               {showBadge && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center px-1">
                   {pendingCount}

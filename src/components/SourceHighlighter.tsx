@@ -196,8 +196,10 @@ const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMar
     if (!found) return
     const { start, end, rect } = found
     setNotePanel(null)
+    // 工具列寬約 300px，置中位移要預留半寬，否則手機上會切出畫面外
+    const half = Math.min(160, window.innerWidth / 2 - 6)
     setToolbar({
-      x: Math.max(12, Math.min(window.innerWidth - 12, rect.left + rect.width / 2)),
+      x: Math.max(half, Math.min(window.innerWidth - half, rect.left + rect.width / 2)),
       y: Math.max(12, rect.top - 10),
       start,
       end,
@@ -288,8 +290,9 @@ const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMar
       const covering = highlights.filter((h) => h.k !== "note" && h.s <= seg.s && h.e >= seg.e)
       const start = Math.min(seg.s, ...covering.map((h) => h.s))
       const end = Math.max(seg.e, ...covering.map((h) => h.e))
+      const half = Math.min(160, window.innerWidth / 2 - 6)
       setToolbar({
-        x: Math.max(12, Math.min(window.innerWidth - 12, event.clientX)),
+        x: Math.max(half, Math.min(window.innerWidth - half, event.clientX)),
         y: Math.max(12, event.clientY - 10),
         start,
         end,
@@ -461,11 +464,11 @@ const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMar
 
       {toolbar && (
         <div
-          className="fixed z-[60] -translate-x-1/2 -translate-y-full flex flex-col gap-1 bg-popover border border-border rounded-lg shadow-lg px-1.5 py-1.5"
+          className="fixed z-[60] -translate-x-1/2 -translate-y-full flex flex-col gap-1 bg-popover border border-border rounded-lg shadow-lg px-1.5 py-1.5 max-w-[96vw]"
           style={{ left: toolbar.x, top: toolbar.y }}
           onMouseDown={(e) => e.preventDefault()} // 別讓點按鈕弄掉 selection
         >
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <button onClick={() => applyStyle("hl", "y")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
               <Highlighter className="w-4 h-4 text-yellow-500" />
               螢光筆
@@ -485,7 +488,7 @@ const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMar
               </button>
             )}
           </div>
-          <div className="flex items-center gap-1 border-t border-border pt-1">
+          <div className="flex items-center gap-1 flex-wrap border-t border-border pt-1">
             {(["g", "r", "b", "p"] as HighlightColor[]).map((c) => (
               <button
                 key={c}

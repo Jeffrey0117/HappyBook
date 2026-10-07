@@ -112,11 +112,11 @@ const ReadingRecords = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="max-w-screen-md mx-auto px-4 pt-6">
-        <div className="flex items-center justify-between mb-1">
-          <button onClick={() => navigate("/my")} className="flex items-center text-muted-foreground text-sm">
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+          <button onClick={() => navigate("/my")} className="flex items-center text-muted-foreground text-sm shrink-0">
             <ArrowLeft className="w-4 h-4 mr-1" /> 我的書架
           </button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             {user && (
               <Button variant="outline" size="sm" asChild>
                 <Link to={`/shelf/${user.id}`}><Library className="w-4 h-4 mr-1" />公開書牆</Link>

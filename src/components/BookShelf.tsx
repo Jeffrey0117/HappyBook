@@ -27,14 +27,30 @@ const BookShelf = ({ books, actions }: BookShelfProps) => {
       ) : (
         shelves.map((shelf, i) => (
           <div key={i}>
-            <div className="flex items-end gap-1 px-2 min-h-[180px] pt-4">
-              {shelf.map((book) => (
-                <BookSpine
-                  key={book.id}
-                  book={book}
-                  onClick={() => setSelectedBook(book)}
-                />
-              ))}
+            <div className="flex items-end gap-1.5 px-2 min-h-[180px] pt-4">
+              {shelf.map((book) =>
+                book.cover_url ? (
+                  <button
+                    key={book.id}
+                    onClick={() => setSelectedBook(book)}
+                    title={book.title}
+                    className="shrink-0 w-[14%] max-w-24 min-w-[48px] hover:-translate-y-2 transition-transform"
+                  >
+                    <img
+                      src={book.cover_url}
+                      alt={book.title}
+                      className="w-full aspect-[2/3] object-cover rounded-sm shadow-lg border border-black/30"
+                      loading="lazy"
+                    />
+                  </button>
+                ) : (
+                  <BookSpine
+                    key={book.id}
+                    book={book}
+                    onClick={() => setSelectedBook(book)}
+                  />
+                )
+              )}
             </div>
             <div className="h-3 bg-gradient-to-b from-amber-800 to-amber-900 rounded-sm shadow-inner" />
             <div className="h-1 bg-amber-950/60" />

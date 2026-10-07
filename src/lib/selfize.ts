@@ -155,6 +155,8 @@ export interface Profile {
   contact_id: string | null
   city: string | null
   ig: string | null
+  music_url: string | null
+  music_title: string | null
   created_at: string
   updated_at: string
 }

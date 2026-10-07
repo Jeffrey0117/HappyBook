@@ -6,6 +6,7 @@ import Navigation from "@/components/Navigation"
 import UserMenu from "@/components/UserMenu"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
+import RetroPlayer from "@/components/RetroPlayer"
 import { ArrowLeft, BookOpen, NotebookPen, Instagram, UserPlus, UserCheck, User } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useGameStats } from "@/hooks/use-game-stats"
@@ -295,6 +296,11 @@ const UserShelf = () => {
                 <p className="text-xs text-muted-foreground">來訪人次</p>
               </div>
             </div>
+
+            {/* 音樂盒 */}
+            {profile?.music_url && (
+              <RetroPlayer url={profile.music_url} title={profile.music_title} />
+            )}
 
             {/* 誰來我家（無名小站魂） */}
             <div className="bg-card border border-border rounded-xl p-4">

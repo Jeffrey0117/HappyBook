@@ -28,7 +28,7 @@ const MyShelf = () => {
   const [freshLoaded, setFreshLoaded] = useState(false)
   const [cached, setCached] = useState<{ profile: Profile; books: Book[]; reviews?: Review[] } | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ bio: "", city: "", ig: "", avatar_url: "", contact_type: "" as "" | "ig" | "line", contact_id: "" })
+  const [editForm, setEditForm] = useState({ bio: "", city: "", ig: "", avatar_url: "", contact_type: "" as "" | "ig" | "line", contact_id: "", music_url: "", music_title: "" })
   const [savingProfile, setSavingProfile] = useState(false)
 
   const cacheKey = user ? `hb_myshelf_cache_${user.id}` : null
@@ -76,6 +76,8 @@ const MyShelf = () => {
       avatar_url: p?.avatar_url || "",
       contact_type: (p?.contact_type as "" | "ig" | "line") || "",
       contact_id: p?.contact_id || "",
+      music_url: p?.music_url || "",
+      music_title: p?.music_title || "",
     })
     setEditOpen(true)
   }
@@ -90,6 +92,8 @@ const MyShelf = () => {
         avatar_url: editForm.avatar_url.trim() || null,
         contact_type: editForm.contact_type || null,
         contact_id: editForm.contact_id.trim() || null,
+        music_url: editForm.music_url.trim() || null,
+        music_title: editForm.music_title.trim() || null,
       })
       toast.success("個人資料已更新")
       setEditOpen(false)
@@ -373,6 +377,27 @@ const MyShelf = () => {
                   onChange={(e) => setEditForm({ ...editForm, contact_id: e.target.value })}
                   className="mt-1 w-full h-9 text-sm rounded-md border border-input bg-background px-2"
                   placeholder="換書時給對方看的"
+                />
+              </div>
+            </div>
+            <div className="border-t border-border pt-3 space-y-3">
+              <p className="text-sm font-medium">🎵 音樂盒（無名風背景音樂）</p>
+              <div>
+                <label className="text-sm font-medium">音訊網址</label>
+                <input
+                  value={editForm.music_url}
+                  onChange={(e) => setEditForm({ ...editForm, music_url: e.target.value })}
+                  className="mt-1 w-full h-9 text-sm rounded-md border border-input bg-background px-2"
+                  placeholder="mp3 等音訊檔連結，貼你自己的音源"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">歌曲名稱</label>
+                <input
+                  value={editForm.music_title}
+                  onChange={(e) => setEditForm({ ...editForm, music_title: e.target.value })}
+                  className="mt-1 w-full h-9 text-sm rounded-md border border-input bg-background px-2"
+                  placeholder="跑馬燈會顯示這個"
                 />
               </div>
             </div>

@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
-import { User, LogOut, BookOpen, NotebookPen, Library, UserCircle } from "lucide-react"
+import { User, LogOut, BookOpen, NotebookPen, Library, UserCircle, Pencil } from "lucide-react"
 
 /** 全站共用的右上角會員選單：頭像 → 下拉；未登入 → 登入鈕 */
 const UserMenu = () => {
@@ -64,6 +64,9 @@ const UserMenu = () => {
                 <Library className="w-4 h-4 text-muted-foreground" />公開書牆
               </button>
             )}
+            <button onClick={() => go("/my?edit=1")} className={item}>
+              <Pencil className="w-4 h-4 text-muted-foreground" />編輯個人資料
+            </button>
             <div className="border-t border-border my-1" />
             <button
               onClick={() => {

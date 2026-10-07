@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { selfize, type Book, type Profile, type Review } from "@/lib/selfize"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -43,6 +43,17 @@ const MyShelf = () => {
   }, [cacheKey])
 
   const { hasContact } = useOnboarding(profile, books)
+
+  // 從頭像選單「編輯個人資料」進來（/my?edit=1）→ 直接開編輯視窗
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get("edit") && (profile || cached?.profile)) {
+      openEdit()
+      searchParams.delete("edit")
+      setSearchParams(searchParams, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, profile, cached])
 
   useEffect(() => {
     if (profile) fetchMyBooks()

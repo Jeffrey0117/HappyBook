@@ -76,14 +76,54 @@ interface Segment {
   hlc: HighlightColor | null
   ul: boolean
   noted: boolean
+  mdCls: string
 }
 
-function buildSegments(text: string, hls: Highlight[]): Segment[] {
+/**
+ * 輕量 Markdown 行樣式（# 標題、> 引言）。
+ * 記號字元必須留在 DOM（用 font-size:0 隱藏）——拿掉會讓選取座標跟 source_text 對不上。
+ */
+interface LineStyle {
+  s: number
+  e: number
+  markerEnd: number
+  cls: string
+}
+
+const MD_MARKER_CLS = "text-[0px] select-none"
+
+function parseLineStyles(text: string): LineStyle[] {
+  const out: LineStyle[] = []
+  let pos = 0
+  for (const line of text.split("\n")) {
+    let m: RegExpExecArray | null
+    if ((m = /^(#{1,3})\s+/.exec(line))) {
+      const level = m[1].length
+      out.push({
+        s: pos,
+        e: pos + line.length,
+        markerEnd: pos + m[0].length,
+        cls: level === 1 ? "text-xl font-bold" : level === 2 ? "text-lg font-bold" : "text-base font-bold",
+      })
+    } else if ((m = /^>\s?/.exec(line))) {
+      out.push({ s: pos, e: pos + line.length, markerEnd: pos + m[0].length, cls: "italic text-muted-foreground" })
+    }
+    pos += line.length + 1
+  }
+  return out
+}
+
+function buildSegments(text: string, hls: Highlight[], lineStyles: LineStyle[]): Segment[] {
   const clamp = (n: number) => Math.max(0, Math.min(n, text.length))
   const points = new Set<number>([0, text.length])
   for (const h of hls) {
     points.add(clamp(h.s))
     points.add(clamp(h.e))
+  }
+  for (const ls of lineStyles) {
+    points.add(ls.s)
+    points.add(ls.markerEnd)
+    points.add(ls.e)
   }
   const sorted = [...points].sort((a, b) => a - b)
   const segs: Segment[] = []
@@ -92,12 +132,14 @@ function buildSegments(text: string, hls: Highlight[]): Segment[] {
     const e = sorted[i + 1]
     if (s >= e) continue
     const hl = hls.find((h) => h.k === "hl" && h.s <= s && h.e >= e)
+    const ls = lineStyles.find((l) => l.s <= s && e <= l.e)
     segs.push({
       s,
       e,
       hlc: hl ? hl.c || "y" : null,
       ul: hls.some((h) => h.k === "ul" && h.s <= s && h.e >= e),
       noted: hls.some((h) => h.k === "note" && h.s <= s && h.e >= e),
+      mdCls: ls ? (s < ls.markerEnd ? MD_MARKER_CLS : ls.cls) : "",
     })
   }
   return segs
@@ -240,7 +282,8 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
     return () => window.removeEventListener("scroll", close, true)
   }, [toolbar])
 
-  const segments = buildSegments(text, highlights)
+  const lineStyles = parseLineStyles(text)
+  const segments = buildSegments(text, highlights, lineStyles)
   const clampEnd = (n: number) => Math.max(0, Math.min(n, text.length))
 
   // 標註目錄：所有標註按位置排序，點了跳到原文位置
@@ -332,7 +375,7 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
             </button>
           ))
           if (!seg.hlc && !seg.ul && !seg.noted) {
-            return [...startingSyms, <span key={seg.s} id={`annpos-${seg.s}`}>{content}</span>, ...markers]
+            return [...startingSyms, <span key={seg.s} id={`annpos-${seg.s}`} className={seg.mdCls}>{content}</span>, ...markers]
           }
           return [
             ...startingSyms,
@@ -342,6 +385,7 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
               onClick={(e) => handleMarkClick(seg, e)}
               className={[
                 "text-inherit cursor-pointer rounded-sm",
+                seg.mdCls,
                 seg.hlc ? HL_CATEGORIES[seg.hlc].mark : "bg-transparent",
                 seg.ul
                   ? "underline decoration-primary decoration-2 underline-offset-4"

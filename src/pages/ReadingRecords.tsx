@@ -145,40 +145,49 @@ const ReadingRecords = () => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                {rec.source_text ? (
-                  expandedId === rec.id ? (
-                    <div className="mt-3 border-t border-border pt-3">
-                      <p className="text-xs text-muted-foreground mb-2">
-                        選取文字：螢光筆／底線／批註。分類：
-                        <span className="text-green-600 dark:text-green-400 font-medium">＋正例</span>
-                        <span className="text-red-600 dark:text-red-400 font-medium">−反例</span>
-                        <span className="text-blue-600 dark:text-blue-400 font-medium">★核心</span>
-                        <span className="text-purple-600 dark:text-purple-400 font-medium">⚑立場</span>
+                {expandedId === rec.id ? (
+                  <>
+                    {rec.ai_summary ? (
+                      <div className="mt-3 text-sm bg-muted/60 rounded-lg p-3 whitespace-pre-line">
+                        <p className="font-medium mb-1 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> AI 重點</p>
+                        {rec.ai_summary}
+                      </div>
+                    ) : null}
+                    {rec.my_note ? (
+                      <p className="text-sm mt-2 border-l-2 border-primary pl-2 whitespace-pre-line">💭 {rec.my_note}</p>
+                    ) : null}
+                    {rec.source_text ? (
+                      <div className="mt-3 border-t border-border pt-3">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          選取文字：螢光筆／底線／批註。分類：
+                          <span className="text-green-600 dark:text-green-400 font-medium">＋正例</span>
+                          <span className="text-red-600 dark:text-red-400 font-medium">−反例</span>
+                          <span className="text-blue-600 dark:text-blue-400 font-medium">★核心</span>
+                          <span className="text-purple-600 dark:text-purple-400 font-medium">⚑立場</span>
+                        </p>
+                        <SourceHighlighter
+                          text={rec.source_text}
+                          highlights={rec.highlights || []}
+                          onChange={(next) => handleHighlights(rec, next)}
+                        />
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {rec.source_text ? (
+                      <p
+                        className="text-sm mt-2 text-muted-foreground line-clamp-3 whitespace-pre-line cursor-pointer"
+                        onClick={() => setExpandedId(rec.id)}
+                      >
+                        {rec.source_text}
                       </p>
-                      <SourceHighlighter
-                        text={rec.source_text}
-                        highlights={rec.highlights || []}
-                        onChange={(next) => handleHighlights(rec, next)}
-                      />
-                    </div>
-                  ) : (
-                    <p
-                      className="text-sm mt-2 text-muted-foreground line-clamp-3 whitespace-pre-line cursor-pointer"
-                      onClick={() => setExpandedId(rec.id)}
-                    >
-                      {rec.source_text}
-                    </p>
-                  )
-                ) : null}
-                {expandedId === rec.id && rec.ai_summary ? (
-                  <div className="mt-3 text-sm bg-muted/60 rounded-lg p-3 whitespace-pre-line">
-                    <p className="font-medium mb-1 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> AI 重點</p>
-                    {rec.ai_summary}
-                  </div>
-                ) : null}
-                {rec.my_note ? (
-                  <p className={`text-sm mt-2 border-l-2 border-primary pl-2 whitespace-pre-line ${expandedId === rec.id ? "" : "line-clamp-2"}`}>💭 {rec.my_note}</p>
-                ) : null}
+                    ) : null}
+                    {rec.my_note ? (
+                      <p className="text-sm mt-2 border-l-2 border-primary pl-2 whitespace-pre-line line-clamp-2">💭 {rec.my_note}</p>
+                    ) : null}
+                  </>
+                )}
                 {rec.source_text || rec.ai_summary ? (
                   <div className="mt-2 flex items-center gap-3">
                     <button

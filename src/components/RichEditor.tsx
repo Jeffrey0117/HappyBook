@@ -3,6 +3,8 @@ import { useEditor, EditorContent } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
+import { TextStyle } from "@tiptap/extension-text-style"
+import { Color } from "@tiptap/extension-color"
 import { Markdown } from "tiptap-markdown"
 import { Bold, Italic, Quote, List, ListOrdered } from "lucide-react"
 import { mdToEditor, mdFromEditor } from "@/lib/markdown"
@@ -20,8 +22,10 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
   const editor = useEditor({
     extensions: [
       StarterKit,
+      TextStyle,
+      Color,
       Placeholder.configure({ placeholder: placeholder || "開始寫…" }),
-      Markdown.configure({ breaks: true }),
+      Markdown.configure({ breaks: true, html: true }),
     ],
     content: mdToEditor(value),
     onUpdate: ({ editor }) => {
@@ -93,14 +97,46 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
   const BigT = <span className="font-bold text-base leading-none">T</span>
   const SmallT = <span className="font-bold text-[11px] leading-none">T</span>
 
+  // isActive 在「選取範圍碰到任何標題」就會亮 → 改成只看游標所在的那一行
+  const headingActive = (level: number) => {
+    const { $from } = editor.state.selection
+    return $from.parent.type.name === "heading" && $from.parent.attrs.level === level
+  }
+
+  const COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"]
+  const colorButtons = (
+    <>
+      <div className="w-px h-5 bg-border mx-1" />
+      {COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          title="文字顏色"
+          onClick={() => editor.chain().focus().setColor(c).run()}
+          className={`p-1.5 rounded-md hover:bg-muted ${editor.isActive("textStyle", { color: c }) ? "ring-1 ring-primary" : ""}`}
+        >
+          <span className="block w-3.5 h-3.5 rounded-full" style={{ backgroundColor: c }} />
+        </button>
+      ))}
+      <button
+        type="button"
+        title="清除顏色"
+        onClick={() => editor.chain().focus().unsetColor().run()}
+        className="p-1.5 rounded-md hover:bg-muted"
+      >
+        <span className="block w-3.5 h-3.5 rounded-full border-2 border-muted-foreground" />
+      </button>
+    </>
+  )
+
   return (
     <div className="border border-input rounded-md bg-background">
       {/* 固定工具列：區塊層級 */}
       <div className="flex items-center gap-0.5 border-b border-border px-2 py-1.5 flex-wrap">
-        <button type="button" title="大字" onClick={() => toggleLineHeading(2)} className={`${btn(editor.isActive("heading", { level: 2 }))} w-8 h-8 flex items-center justify-center`}>
+        <button type="button" title="大字" onClick={() => toggleLineHeading(2)} className={`${btn(headingActive(2))} w-8 h-8 flex items-center justify-center`}>
           {BigT}
         </button>
-        <button type="button" title="小字" onClick={() => toggleLineHeading(3)} className={`${btn(editor.isActive("heading", { level: 3 }))} w-8 h-8 flex items-center justify-center`}>
+        <button type="button" title="小字" onClick={() => toggleLineHeading(3)} className={`${btn(headingActive(3))} w-8 h-8 flex items-center justify-center`}>
           {SmallT}
         </button>
         <div className="w-px h-5 bg-border mx-1" />
@@ -119,15 +155,16 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
         <button type="button" title="編號列表" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btn(editor.isActive("orderedList"))}>
           <ListOrdered className="w-4 h-4" />
         </button>
+        {colorButtons}
       </div>
 
       {/* Medium 式選取浮動工具列 */}
       <BubbleMenu editor={editor}>
         <div className="flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-lg px-1 py-1">
-          <button type="button" title="大字" onClick={() => toggleLineHeading(2)} className={`${btn(editor.isActive("heading", { level: 2 }))} w-8 h-8 flex items-center justify-center`}>
+          <button type="button" title="大字" onClick={() => toggleLineHeading(2)} className={`${btn(headingActive(2))} w-8 h-8 flex items-center justify-center`}>
             {BigT}
           </button>
-          <button type="button" title="小字" onClick={() => toggleLineHeading(3)} className={`${btn(editor.isActive("heading", { level: 3 }))} w-8 h-8 flex items-center justify-center`}>
+          <button type="button" title="小字" onClick={() => toggleLineHeading(3)} className={`${btn(headingActive(3))} w-8 h-8 flex items-center justify-center`}>
             {SmallT}
           </button>
           <div className="w-px h-5 bg-border mx-0.5" />
@@ -140,6 +177,7 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
           <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btn(editor.isActive("blockquote"))}>
             <Quote className="w-4 h-4" />
           </button>
+          {colorButtons}
         </div>
       </BubbleMenu>
 

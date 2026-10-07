@@ -4,7 +4,25 @@
  *    這裡把多出來的空行換成 nbsp 空段落，排版跟著使用者打的來）
  * 2. 單次換行也換行（預設要兩個空白結尾才斷行）
  */
+import rehypeRaw from "rehype-raw"
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
+
 const NBSP = String.fromCharCode(160)
+
+/** 心得渲染用：允許內嵌 HTML（文字顏色的 span）但全程消毒，擋 script/事件屬性 */
+export const reviewRehypePlugins = [
+  rehypeRaw,
+  [
+    rehypeSanitize,
+    {
+      ...defaultSchema,
+      attributes: {
+        ...defaultSchema.attributes,
+        span: [...((defaultSchema.attributes && defaultSchema.attributes.span) || []), ["style"]],
+      },
+    },
+  ],
+] as never[]
 
 /** 進富文本編輯器前：多餘空行 → nbsp 空段落（TipTap 解析不會吞掉，編輯器裡看得到空行） */
 export function mdToEditor(md: string): string {

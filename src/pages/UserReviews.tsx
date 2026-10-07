@@ -7,7 +7,7 @@ import Navigation from "@/components/Navigation"
 import { ArrowLeft, BookOpen, User } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import ReactMarkdown from "react-markdown"
-import { mdPreserveBreaks } from "@/lib/markdown"
+import { mdPreserveBreaks, reviewRehypePlugins } from "@/lib/markdown"
 
 const UserReviews = () => {
   const { userId } = useParams<{ userId: string }>()
@@ -123,7 +123,7 @@ const UserReviews = () => {
                   </div>
 
                   <div className="prose-review text-sm">
-                    <ReactMarkdown>{mdPreserveBreaks(review.content)}</ReactMarkdown>
+                    <ReactMarkdown rehypePlugins={reviewRehypePlugins}>{mdPreserveBreaks(review.content)}</ReactMarkdown>
                   </div>
                 </CardContent>
               </Card>

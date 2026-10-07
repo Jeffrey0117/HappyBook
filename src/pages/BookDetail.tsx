@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
 import { readCache, writeCache } from "@/lib/page-cache"
-import { mdPreserveBreaks } from "@/lib/markdown"
+import { mdPreserveBreaks, reviewRehypePlugins } from "@/lib/markdown"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { useMyBooks } from "@/hooks/use-my-books"
@@ -318,7 +318,7 @@ const BookDetail = () => {
                           </div>
                         </div>
                         <div className="prose-review text-sm">
-                          <ReactMarkdown>{mdPreserveBreaks(review.content)}</ReactMarkdown>
+                          <ReactMarkdown rehypePlugins={reviewRehypePlugins}>{mdPreserveBreaks(review.content)}</ReactMarkdown>
                         </div>
                       </CardContent>
                     </Card>

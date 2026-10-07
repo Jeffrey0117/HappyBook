@@ -218,3 +218,12 @@ All colors MUST be HSL.
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* TipTap 編輯器的 placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

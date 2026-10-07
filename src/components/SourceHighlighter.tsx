@@ -53,7 +53,25 @@ function addStyleRange(hls: Highlight[], s: number, e: number, k: "hl" | "ul", c
     if (h.e > e) out.push({ ...h, s: e })
   }
   out.push(c ? { s, e, k, c } : { s, e, k })
-  return out.sort((a, b) => a.s - b.s)
+  out.sort((a, b) => a.s - b.s)
+
+  // 同分類「重疊或緊鄰」自動合併成一條 → 重畫同色＝延伸區間，不會斷成兩段
+  const merged: Highlight[] = []
+  for (const h of out) {
+    const last = merged[merged.length - 1]
+    if (
+      last &&
+      h.k !== "note" &&
+      last.k === h.k &&
+      (last.c || "y") === (h.c || "y") &&
+      h.s <= last.e
+    ) {
+      merged[merged.length - 1] = { ...last, e: Math.max(last.e, h.e) }
+    } else {
+      merged.push(h)
+    }
+  }
+  return merged
 }
 
 /** 清除只作用於螢光筆/底線；批註由自己的面板刪除 */
@@ -289,7 +307,7 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
 
   // 標註目錄：語義分類分組（核心→重點→立場→正例→反例＝這篇的論證地圖）；
   // 底線/批註性質不同，降級為分隔線下的折疊區（預設收合、只顯示計數）
-  const OUTLINE_ORDER: HighlightColor[] = ["b", "y", "p", "g", "r"]
+  const OUTLINE_ORDER: HighlightColor[] = ["p", "b", "y", "g", "r"]
   const catGroups = OUTLINE_ORDER.map((c) => ({
     c,
     items: highlights.filter((h) => h.k === "hl" && (h.c || "y") === c).sort((a, b) => a.s - b.s),

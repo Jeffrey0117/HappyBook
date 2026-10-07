@@ -20,7 +20,7 @@ const UserShelf = () => {
   const [books, setBooks] = useState<Book[]>([])
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({}) // book_id → 公開筆記數
   const [reviews, setReviews] = useState<Review[]>([])
-  const { user } = useAuth()
+  const { user, isReady, login } = useAuth()
   const { profile: myProfile } = useProfile()
   const [loading, setLoading] = useState(true)
   const stats = useGameStats(id)
@@ -46,41 +46,53 @@ const UserShelf = () => {
       .catch(() => {})
   }, [id, myProfile?.id])
 
-  // 誰來我家：登入訪客留下足跡（每個瀏覽器 session 記一次），再撈最近訪客
-  useEffect(() => {
+  // 最近訪客＋人次（不等登入狀態，先顯示）
+  const fetchVisits = async () => {
     if (!id) return
+    try {
+      const { items, total } = await selfize.list<{ visitor_id: string | null; visitor_name: string | null; visitor_avatar: string | null }>(
+        "visits",
+        { host_id: id, sort: "-created_at", limit: "50" }
+      )
+      setVisitTotal(total)
+      const seen = new Set<string>()
+      const vs: { id: string; name: string; avatar: string | null }[] = []
+      for (const v of items) {
+        if (!v.visitor_id || seen.has(v.visitor_id) || v.visitor_id === id) continue
+        seen.add(v.visitor_id)
+        vs.push({ id: v.visitor_id, name: v.visitor_name || "讀者", avatar: v.visitor_avatar })
+        if (vs.length >= 8) break
+      }
+      setVisitors(vs)
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchVisits()
+  }, [id])
+
+  // 留下足跡：登入者記名、未登入記匿名人次；每個瀏覽器 session 一次、自己不算
+  useEffect(() => {
+    if (!id || !isReady) return
+    if (user && !myProfile) return // 已登入但 profile 還沒到，等一下再記（記名用）
     const run = async () => {
       try {
         const key = `hb_visited_${id}`
-        if (!sessionStorage.getItem(key) && myProfile && myProfile.id !== id) {
+        const isSelfVisit = !!myProfile && myProfile.id === id
+        if (!sessionStorage.getItem(key) && !isSelfVisit) {
           sessionStorage.setItem(key, "1")
           await selfize.create("visits", {
             host_id: id,
-            visitor_id: myProfile.id,
-            visitor_name: myProfile.display_name,
-            visitor_avatar: myProfile.avatar_url,
+            visitor_id: myProfile?.id || null,
+            visitor_name: myProfile?.display_name || null,
+            visitor_avatar: myProfile?.avatar_url || null,
           })
+          fetchVisits()
         }
-      } catch {}
-      try {
-        const { items, total } = await selfize.list<{ visitor_id: string | null; visitor_name: string | null; visitor_avatar: string | null }>(
-          "visits",
-          { host_id: id, sort: "-created_at", limit: "50" }
-        )
-        setVisitTotal(total)
-        const seen = new Set<string>()
-        const vs: { id: string; name: string; avatar: string | null }[] = []
-        for (const v of items) {
-          if (!v.visitor_id || seen.has(v.visitor_id) || v.visitor_id === id) continue
-          seen.add(v.visitor_id)
-          vs.push({ id: v.visitor_id, name: v.visitor_name || "讀者", avatar: v.visitor_avatar })
-          if (vs.length >= 8) break
-        }
-        setVisitors(vs)
       } catch {}
     }
     run()
-  }, [id, myProfile?.id])
+  }, [id, isReady, user?.id, myProfile?.id])
 
   const toggleFollow = async () => {
     if (!myProfile || !id || followBusy) return
@@ -268,12 +280,12 @@ const UserShelf = () => {
                 : <ProfileCard profile={profile} stats={stats} />
             )}
 
-            {/* 追蹤 */}
-            {!isSelf && myProfile && (
+            {/* 追蹤：未登入也看得到，點了先登入 */}
+            {!isSelf && (
               <Button
                 className="w-full"
                 variant={myFollowId ? "outline" : "default"}
-                onClick={toggleFollow}
+                onClick={() => (myProfile ? toggleFollow() : login())}
                 disabled={followBusy}
               >
                 {myFollowId ? (

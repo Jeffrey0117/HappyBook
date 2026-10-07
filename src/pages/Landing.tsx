@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { selfize, type Book } from "@/lib/selfize"
+import { readCache, writeCache } from "@/lib/page-cache"
 import { BookOpen, NotebookPen, Sparkles, ArrowRight, Library } from "lucide-react"
 
 const FEATURES = [
@@ -25,6 +28,18 @@ const FEATURES = [
 const Landing = () => {
   const navigate = useNavigate()
   const { isAuthenticated, login } = useAuth()
+  const [covers, setCovers] = useState<string[]>([])
+
+  useEffect(() => {
+    const toCovers = (books: Book[]) =>
+      Array.from(new Set(books.map((b) => b.cover_url).filter(Boolean))) as string[]
+    const cached = readCache<Book[]>("browse_books")
+    if (cached) setCovers(toCovers(cached))
+    selfize
+      .list<Book>("books", { status: "available", sort: "-created_at", limit: "100" })
+      .then(({ items }) => setCovers(toCovers(items)))
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen bg-neutral-950 pb-24">
@@ -70,6 +85,31 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* 封面牆跑馬燈：正在流通的書 */}
+      {covers.length >= 3 && (
+        <section className="relative overflow-hidden py-4">
+          <style>{`@keyframes hb-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+          <div
+            className="flex gap-4 w-max cursor-pointer"
+            style={{ animation: `hb-marquee ${Math.max(30, covers.length * 6)}s linear infinite` }}
+            onClick={() => navigate("/browse")}
+          >
+            {[...covers, ...covers].map((url, i) => (
+              <img
+                key={i}
+                src={url}
+                alt=""
+                loading="lazy"
+                className="h-36 sm:h-44 rounded-md shadow-xl shrink-0"
+              />
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-neutral-950 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-neutral-950 to-transparent" />
+          <p className="text-center text-xs text-neutral-600 mt-3">正在 HappyBook 流通的書，點封面去逛</p>
+        </section>
+      )}
 
       {/* 三大功能：延續黑白品牌風 */}
       <section className="max-w-screen-lg mx-auto px-6 py-14">

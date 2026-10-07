@@ -2,13 +2,17 @@ import { useRef, useState, useCallback, useEffect } from "react"
 import { Highlighter, Underline, Eraser, MessageSquarePlus, MessageSquare, Pencil, Trash2, X } from "lucide-react"
 import type { Highlight, HighlightColor } from "@/lib/selfize"
 
-/** 螢光筆分類：顏色＝語義。sym 會顯示在標註段落開頭的上標處 */
-export const HL_CATEGORIES: Record<HighlightColor, { label: string; sym: string; mark: string; dot: string; symText: string }> = {
-  y: { label: "重點", sym: "", mark: "bg-yellow-200 dark:bg-yellow-500/40", dot: "bg-yellow-400", symText: "" },
-  g: { label: "正例", sym: "＋", mark: "bg-green-200 dark:bg-green-500/30", dot: "bg-green-500", symText: "text-green-600 dark:text-green-400" },
-  r: { label: "反例", sym: "−", mark: "bg-red-200 dark:bg-red-500/30", dot: "bg-red-500", symText: "text-red-600 dark:text-red-400" },
-  b: { label: "核心", sym: "★", mark: "bg-blue-200 dark:bg-blue-500/30", dot: "bg-blue-500", symText: "text-blue-600 dark:text-blue-400" },
-  p: { label: "立場", sym: "⚑", mark: "bg-purple-200 dark:bg-purple-500/30", dot: "bg-purple-500", symText: "text-purple-600 dark:text-purple-400" },
+/**
+ * 螢光筆分類：顏色＝語義。sym 用在工具列按鈕文字；
+ * symClass 用 CSS 偽元素把符號畫在標註開頭——不能用真實文字節點，
+ * 否則符號會被算進 Range.toString() 的選取座標，之後所有標註位置全部偏移。
+ */
+export const HL_CATEGORIES: Record<HighlightColor, { label: string; sym: string; mark: string; dot: string; symClass: string }> = {
+  y: { label: "重點", sym: "", mark: "bg-yellow-200 dark:bg-yellow-500/40", dot: "bg-yellow-400", symClass: "" },
+  g: { label: "正例", sym: "＋", mark: "bg-green-200 dark:bg-green-500/30", dot: "bg-green-500", symClass: "before:content-['＋'] text-green-600 dark:text-green-400" },
+  r: { label: "反例", sym: "−", mark: "bg-red-200 dark:bg-red-500/30", dot: "bg-red-500", symClass: "before:content-['−'] text-red-600 dark:text-red-400" },
+  b: { label: "核心", sym: "★", mark: "bg-blue-200 dark:bg-blue-500/30", dot: "bg-blue-500", symClass: "before:content-['★'] text-blue-600 dark:text-blue-400" },
+  p: { label: "立場", sym: "⚑", mark: "bg-purple-200 dark:bg-purple-500/30", dot: "bg-purple-500", symClass: "before:content-['⚑'] text-purple-600 dark:text-purple-400" },
 }
 
 interface ToolbarState {
@@ -213,15 +217,19 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
       if (!seg.hlc && !seg.ul) return
       event.stopPropagation()
       setNotePanel(null)
+      // 鎖定「整條」涵蓋這個片段的標註，清除才不會只清到點到的碎片
+      const covering = highlights.filter((h) => h.k !== "note" && h.s <= seg.s && h.e >= seg.e)
+      const start = Math.min(seg.s, ...covering.map((h) => h.s))
+      const end = Math.max(seg.e, ...covering.map((h) => h.e))
       setToolbar({
         x: Math.max(12, Math.min(window.innerWidth - 12, event.clientX)),
         y: Math.max(12, event.clientY - 10),
-        start: seg.s,
-        end: seg.e,
+        start,
+        end,
         hasStyle: true,
       })
     },
-    [notes, openNote]
+    [notes, openNote, highlights]
   )
 
   useEffect(() => {
@@ -244,16 +252,16 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
       >
         {segments.map((seg) => {
           const content = text.slice(seg.s, seg.e)
-          // 分類符號：掛在螢光筆標註的起點（上標）
+          // 分類符號：掛在螢光筆標註的起點（上標）。
+          // 偽元素渲染（span 無文字子節點）→ 不影響選取座標計算
           const startingSyms = highlights
-            .filter((h) => h.k === "hl" && h.c && HL_CATEGORIES[h.c].sym && Math.max(0, h.s) === seg.s)
+            .filter((h) => h.k === "hl" && h.c && HL_CATEGORIES[h.c].symClass && Math.max(0, h.s) === seg.s)
             .map((h) => (
               <span
                 key={`s-${h.s}-${h.e}`}
-                className={`text-xs align-super font-bold select-none mr-0.5 ${HL_CATEGORIES[h.c!].symText}`}
-              >
-                {HL_CATEGORIES[h.c!].sym}
-              </span>
+                aria-hidden
+                className={`text-xs align-super font-bold select-none mr-0.5 ${HL_CATEGORIES[h.c!].symClass}`}
+              />
             ))
           const endingNotes = notes.filter((n) => clampEnd(n.e) === seg.e)
           const markers = endingNotes.map((note) => (

@@ -92,7 +92,6 @@ const Browse = () => {
   const [books, setBooks] = useState<BookWithOwner[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedTag, setSelectedTag] = useState<string | null>(null)
 
   useEffect(() => {
     // 快取先上（秒出），背景再抓最新
@@ -123,11 +122,6 @@ const Browse = () => {
 
   const grouped = useMemo(() => groupBooksByTitle(books, profile?.id), [books, profile?.id])
 
-  const allTags = useMemo(
-    () => Array.from(new Set(grouped.flatMap((g) => g.tags))).sort(),
-    [grouped]
-  )
-
   // 精選：有封面且最多人擁有的書
   const featured = useMemo(() => {
     const withCover = grouped.filter((g) => g.cover_url)
@@ -151,20 +145,17 @@ const Browse = () => {
       .slice(0, 8)
   }, [grouped])
 
-  const filtering = !!searchQuery.trim() || !!selectedTag
+  const filtering = !!searchQuery.trim()
   const filteredGroups = useMemo(() => {
     if (!filtering) return grouped
-    return grouped.filter((group) => {
-      const q = searchQuery.toLowerCase().trim()
-      const matchesSearch = q
-        ? group.title.toLowerCase().includes(q) ||
-          (group.author || "").toLowerCase().includes(q) ||
-          group.tags.some((tag) => tag.toLowerCase().includes(q))
-        : true
-      const matchesTag = selectedTag ? group.tags.includes(selectedTag) : true
-      return matchesSearch && matchesTag
-    })
-  }, [grouped, searchQuery, selectedTag, filtering])
+    const q = searchQuery.toLowerCase().trim()
+    return grouped.filter(
+      (group) =>
+        group.title.toLowerCase().includes(q) ||
+        (group.author || "").toLowerCase().includes(q) ||
+        group.tags.some((tag) => tag.toLowerCase().includes(q))
+    )
+  }, [grouped, searchQuery, filtering])
 
   return (
     <div className="min-h-screen bg-neutral-950 pb-24">
@@ -172,8 +163,9 @@ const Browse = () => {
       <header className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-lg border-b border-neutral-800">
         <div className="max-w-screen-xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <Link to="/" className="shrink-0">
-              <img src="/logo-happybook.png" alt="HappyBook" className="h-8" />
+            <Link to="/" className="shrink-0 flex items-center gap-3">
+              <img src="/logo-happybook.png" alt="HappyBook" className="h-10 sm:h-12" />
+              <span className="text-lg sm:text-xl font-bold text-white whitespace-nowrap">換書不可</span>
             </Link>
             <div className="relative flex-1 min-w-[160px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
@@ -197,25 +189,6 @@ const Browse = () => {
             </div>
           </div>
 
-          {allTags.length > 0 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1">
-              <button
-                onClick={() => setSelectedTag(null)}
-                className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${selectedTag === null ? "bg-white text-neutral-950 font-medium" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`}
-              >
-                全部
-              </button>
-              {allTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                  className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors ${selectedTag === tag ? "bg-white text-neutral-950 font-medium" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </header>
 

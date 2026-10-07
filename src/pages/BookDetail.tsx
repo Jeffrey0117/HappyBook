@@ -406,6 +406,9 @@ const BookDetail = () => {
                             )}
                           </div>
                         </div>
+                        {review.title && (
+                          <h4 className="text-xl font-bold leading-snug">{review.title}</h4>
+                        )}
                         <div className="prose-review">
                           <ReactMarkdown rehypePlugins={reviewRehypePlugins}>{mdPreserveBreaks(review.content)}</ReactMarkdown>
                         </div>

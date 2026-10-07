@@ -228,6 +228,7 @@ export interface Review {
   book_id: string
   book_title: string
   book_author: string
+  title: string | null
   content: string
   rating: 'up' | 'down' | null
   likes: string[] | null

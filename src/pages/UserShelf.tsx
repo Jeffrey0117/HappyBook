@@ -7,6 +7,7 @@ import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
 import { ArrowLeft, BookOpen, NotebookPen, Instagram } from "lucide-react"
 import { useGameStats } from "@/hooks/use-game-stats"
+import { useAuth } from "@/hooks/use-auth"
 import { readCache, writeCache } from "@/lib/page-cache"
 
 const UserShelf = () => {
@@ -16,6 +17,7 @@ const UserShelf = () => {
   const [books, setBooks] = useState<Book[]>([])
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({}) // book_id → 公開筆記數
   const [reviews, setReviews] = useState<Review[]>([])
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const stats = useGameStats(id)
 
@@ -109,38 +111,67 @@ const UserShelf = () => {
               <BookShelf books={books} />
             )}
 
-            {/* Medium 風格心得文列表 */}
+            {/* Medium 風格心得文列表：左文右書封 */}
             {reviews.length > 0 && (
               <section>
                 <h2 className="text-lg font-bold mb-4">心得</h2>
                 <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <Link
-                      key={review.id}
-                      to={`/book/${encodeURIComponent(review.book_title)}`}
-                      className="block group"
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-xl font-bold group-hover:text-primary transition-colors leading-snug">
-                          《{review.book_title}》
-                        </h3>
-                        {review.rating === "up" && (
-                          <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/40 dark:text-green-400 px-2 py-0.5 rounded-full shrink-0">👍 推</span>
-                        )}
-                        {review.rating === "down" && (
-                          <span className="text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-400 px-2 py-0.5 rounded-full shrink-0">👎 倒讚</span>
-                        )}
-                      </div>
-                      <p className="text-muted-foreground leading-relaxed line-clamp-3">
-                        {excerptOf(review.content)}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {new Date(review.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "short", day: "numeric" })}
-                        　·　閱讀全文 →
-                      </p>
-                      <div className="border-b border-border mt-6" />
-                    </Link>
-                  ))}
+                  {reviews.map((review) => {
+                    const cover = books.find((b) => b.id === review.book_id)?.cover_url || null
+                    const isOwner = !!user && profile?.user_id === user.id
+                    return (
+                      <Link
+                        key={review.id}
+                        to={`/book/${encodeURIComponent(review.book_title)}`}
+                        className="block group"
+                      >
+                        <div className="flex gap-4 items-start">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h3 className="text-xl font-bold group-hover:text-primary transition-colors leading-snug">
+                                {review.title || `《${review.book_title}》`}
+                              </h3>
+                              {review.rating === "up" && (
+                                <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/40 dark:text-green-400 px-2 py-0.5 rounded-full shrink-0">👍 推</span>
+                              )}
+                              {review.rating === "down" && (
+                                <span className="text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-400 px-2 py-0.5 rounded-full shrink-0">👎 倒讚</span>
+                              )}
+                            </div>
+                            {review.title && (
+                              <p className="text-sm text-muted-foreground mb-1">《{review.book_title}》</p>
+                            )}
+                            <p className="text-muted-foreground leading-relaxed line-clamp-3">
+                              {excerptOf(review.content)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {new Date(review.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "short", day: "numeric" })}
+                              　·　閱讀全文 →
+                              {isOwner && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    navigate(`/my/review/${review.book_id}`)
+                                  }}
+                                  className="ml-3 text-primary hover:underline"
+                                >
+                                  編輯
+                                </button>
+                              )}
+                            </p>
+                          </div>
+                          {cover && (
+                            <img
+                              src={cover}
+                              alt={review.book_title}
+                              className="w-16 sm:w-20 aspect-[2/3] object-cover rounded-md border border-border shadow-sm shrink-0"
+                            />
+                          )}
+                        </div>
+                        <div className="border-b border-border mt-6" />
+                      </Link>
+                    )
+                  })}
                 </div>
               </section>
             )}

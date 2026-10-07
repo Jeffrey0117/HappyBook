@@ -26,6 +26,7 @@ const WriteReview = () => {
   const [previewing, setPreviewing] = useState(false)
   const [drafting, setDrafting] = useState(false)
   const [rating, setRating] = useState<"up" | "down" | null>(null)
+  const [title, setTitle] = useState("")
   const [editorMode, setEditorMode] = useState<"rich" | "md">("rich")
   const dirtyRef = useRef(false) // 使用者改過內容後，背景更新不准覆寫
 
@@ -46,6 +47,7 @@ const WriteReview = () => {
         setExistingReview(cr)
         setContent(cr.content)
         setRating(cr.rating || null)
+        setTitle(cr.title || "")
         setLoading(false)
       }
       fetchData()
@@ -67,6 +69,7 @@ const WriteReview = () => {
         if (!dirtyRef.current) {
           setContent(items[0].content)
           setRating(items[0].rating || null)
+          setTitle(items[0].title || "")
         }
       }
     } catch (error) {
@@ -113,9 +116,10 @@ const WriteReview = () => {
         await selfize.update("reviews", existingReview.id, {
           content: content.trim(),
           rating,
+          title: title.trim() || null,
         })
         // 快取直寫：回到書本頁立刻看到新版
-        const saved = { ...existingReview, content: content.trim(), rating }
+        const saved = { ...existingReview, content: content.trim(), rating, title: title.trim() || null }
         writeCache(`wr_rev_${profile.id}_${bookId}`, saved)
         const rc = readCache<Review[]>(`book_${book.title}_reviews`)
         if (rc) {
@@ -130,6 +134,7 @@ const WriteReview = () => {
           book_author: book.author || "",
           content: content.trim(),
           rating,
+          title: title.trim() || null,
         })
         // 新書評自動進動態 feed（失敗不影響發表）
         try {
@@ -204,6 +209,20 @@ const WriteReview = () => {
             )}
           </div>
         )}
+
+        {/* 標題（選填） */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">標題</label>
+          <input
+            value={title}
+            onChange={(e) => {
+              dirtyRef.current = true
+              setTitle(e.target.value)
+            }}
+            placeholder="幫這篇心得取個標題（留空就用書名）"
+            className="w-full h-11 text-lg font-bold rounded-md border border-input bg-background px-3"
+          />
+        </div>
 
         {/* 推／倒讚 */}
         <div className="flex items-center gap-2">

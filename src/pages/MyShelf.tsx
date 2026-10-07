@@ -150,6 +150,10 @@ const MyShelf = () => {
             actions={(book) => (
               <div className="flex flex-wrap gap-2 items-center">
                 {getBookStatusBadge(book.status)}
+                <Button variant="outline" size="sm" onClick={() => navigate(`/book/${encodeURIComponent(book.title)}`)}>
+                  <BookOpen className="h-3 w-3 mr-1" />
+                  書籍頁
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => navigate(`/my/review/${book.id}`)}>
                   <PenLine className="h-3 w-3 mr-1" />
                   寫心得

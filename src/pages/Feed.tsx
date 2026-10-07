@@ -9,7 +9,7 @@ import { HL_CATEGORIES } from "@/components/SourceHighlighter"
 import { readCache, writeCache } from "@/lib/page-cache"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
-import { Heart, User, BookOpen, Loader2, PenLine, NotebookPen, MessageCircle } from "lucide-react"
+import { Heart, User, BookOpen, Loader2, PenLine, NotebookPen, MessageCircle, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 function timeAgo(dateStr: string): string {
@@ -65,6 +65,8 @@ const Feed = () => {
   const [openReplies, setOpenReplies] = useState<string | null>(null)
   const [replyText, setReplyText] = useState("")
   const [replying, setReplying] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState("")
 
   useEffect(() => {
     const cached = readCache<PostExpanded[]>("feed_posts")
@@ -185,6 +187,44 @@ const Feed = () => {
     }
   }
 
+  const handleDeletePost = async (post: PostExpanded) => {
+    if (!confirm("刪除這則貼文？")) return
+    try {
+      await selfize.delete("posts", post.id)
+      // 連回覆一起清，不留孤兒
+      const replies = posts.filter((p) => p.reply_to === post.id)
+      for (const r of replies) {
+        try { await selfize.delete("posts", r.id) } catch {}
+      }
+      setPosts((prev) => prev.filter((p) => p.id !== post.id && p.reply_to !== post.id))
+      toast.success("已刪除")
+    } catch (error) {
+      toast.error("刪除失敗，再試一次")
+    }
+  }
+
+  const handleDeleteReply = async (reply: PostExpanded) => {
+    if (!confirm("刪除這則回覆？")) return
+    try {
+      await selfize.delete("posts", reply.id)
+      setPosts((prev) => prev.filter((p) => p.id !== reply.id))
+    } catch (error) {
+      toast.error("刪除失敗，再試一次")
+    }
+  }
+
+  const handleSaveEdit = async (post: PostExpanded) => {
+    if (!editText.trim()) return
+    try {
+      await selfize.update("posts", post.id, { text: editText.trim() })
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: editText.trim() } : p)))
+      setEditingId(null)
+      toast.success("已更新")
+    } catch (error) {
+      toast.error("儲存失敗，再試一次")
+    }
+  }
+
   const toggleLike = async (post: PostExpanded) => {
     if (!profile) {
       login()
@@ -300,11 +340,48 @@ const Feed = () => {
                     {post.kind !== "post" && (
                       <NotebookPen className="w-4 h-4 text-muted-foreground shrink-0" />
                     )}
+                    {profile?.id === post.user_id && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditingId(post.id)
+                            setEditText(post.text)
+                          }}
+                          className="p-1.5 text-muted-foreground hover:text-foreground"
+                          title="編輯"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePost(post)}
+                          className="p-1.5 text-muted-foreground hover:text-destructive"
+                          title="刪除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  <p className="text-[15px] whitespace-pre-line leading-relaxed line-clamp-6">
-                    {renderPostText(post.text, post.book_title)}
-                  </p>
+                  {editingId === post.id ? (
+                    <div>
+                      <Textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={3}
+                        autoFocus
+                        className="text-[15px]"
+                      />
+                      <div className="flex justify-end gap-2 mt-2">
+                        <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>取消</Button>
+                        <Button size="sm" onClick={() => handleSaveEdit(post)} disabled={!editText.trim()}>儲存</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[15px] whitespace-pre-line leading-relaxed line-clamp-6">
+                      {renderPostText(post.text, post.book_title)}
+                    </p>
+                  )}
 
                   {post.quote?.text && (
                     <blockquote className={`mt-2 text-sm rounded-md px-3 py-2 ${HL_CATEGORIES[post.quote.c || "y"]?.mark || "bg-muted"}`}>
@@ -359,7 +436,7 @@ const Feed = () => {
                                 <AvatarFallback><User className="h-3 w-3" /></AvatarFallback>
                               </Avatar>
                             </Link>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="text-xs text-muted-foreground">
                                 <Link to={`/user/${r.user_id}`} className="font-medium text-foreground hover:text-primary">
                                   {rAuthor?.display_name || "讀者"}
@@ -368,6 +445,15 @@ const Feed = () => {
                               </p>
                               <p className="text-sm whitespace-pre-line">{r.text}</p>
                             </div>
+                            {profile?.id === r.user_id && (
+                              <button
+                                onClick={() => handleDeleteReply(r)}
+                                className="p-1 text-muted-foreground hover:text-destructive shrink-0"
+                                title="刪除回覆"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                         )
                       })}

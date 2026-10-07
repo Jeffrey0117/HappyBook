@@ -1,6 +1,15 @@
 import { useRef, useState, useCallback, useEffect } from "react"
 import { Highlighter, Underline, Eraser, MessageSquarePlus, MessageSquare, Pencil, Trash2, X } from "lucide-react"
-import type { Highlight } from "@/lib/selfize"
+import type { Highlight, HighlightColor } from "@/lib/selfize"
+
+/** 螢光筆分類：顏色＝語義。sym 會顯示在標註段落開頭的上標處 */
+export const HL_CATEGORIES: Record<HighlightColor, { label: string; sym: string; mark: string; dot: string; symText: string }> = {
+  y: { label: "重點", sym: "", mark: "bg-yellow-200 dark:bg-yellow-500/40", dot: "bg-yellow-400", symText: "" },
+  g: { label: "正例", sym: "＋", mark: "bg-green-200 dark:bg-green-500/30", dot: "bg-green-500", symText: "text-green-600 dark:text-green-400" },
+  r: { label: "反例", sym: "−", mark: "bg-red-200 dark:bg-red-500/30", dot: "bg-red-500", symText: "text-red-600 dark:text-red-400" },
+  b: { label: "核心", sym: "★", mark: "bg-blue-200 dark:bg-blue-500/30", dot: "bg-blue-500", symText: "text-blue-600 dark:text-blue-400" },
+  p: { label: "立場", sym: "⚑", mark: "bg-purple-200 dark:bg-purple-500/30", dot: "bg-purple-500", symText: "text-purple-600 dark:text-purple-400" },
+}
 
 interface ToolbarState {
   x: number
@@ -29,7 +38,7 @@ interface SourceHighlighterProps {
 const genId = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36)
 
 /** 新的螢光筆/底線蓋掉既有同類標註的重疊部分；批註（note）是獨立圖層不受影響 */
-function addStyleRange(hls: Highlight[], s: number, e: number, k: "hl" | "ul"): Highlight[] {
+function addStyleRange(hls: Highlight[], s: number, e: number, k: "hl" | "ul", c?: HighlightColor): Highlight[] {
   const out: Highlight[] = []
   for (const h of hls) {
     if (h.k === "note" || h.e <= s || h.s >= e) {
@@ -39,7 +48,7 @@ function addStyleRange(hls: Highlight[], s: number, e: number, k: "hl" | "ul"): 
     if (h.s < s) out.push({ ...h, e: s })
     if (h.e > e) out.push({ ...h, s: e })
   }
-  out.push({ s, e, k })
+  out.push(c ? { s, e, k, c } : { s, e, k })
   return out.sort((a, b) => a.s - b.s)
 }
 
@@ -60,7 +69,7 @@ function removeStyleRange(hls: Highlight[], s: number, e: number): Highlight[] {
 interface Segment {
   s: number
   e: number
-  hl: boolean
+  hlc: HighlightColor | null
   ul: boolean
   noted: boolean
 }
@@ -78,10 +87,11 @@ function buildSegments(text: string, hls: Highlight[]): Segment[] {
     const s = sorted[i]
     const e = sorted[i + 1]
     if (s >= e) continue
+    const hl = hls.find((h) => h.k === "hl" && h.s <= s && h.e >= e)
     segs.push({
       s,
       e,
-      hl: hls.some((h) => h.k === "hl" && h.s <= s && h.e >= e),
+      hlc: hl ? hl.c || "y" : null,
       ul: hls.some((h) => h.k === "ul" && h.s <= s && h.e >= e),
       noted: hls.some((h) => h.k === "note" && h.s <= s && h.e >= e),
     })
@@ -131,12 +141,12 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
   }, [openToolbarFromSelection])
 
   const applyStyle = useCallback(
-    (kind: "hl" | "ul" | "erase") => {
+    (kind: "hl" | "ul" | "erase", color?: HighlightColor) => {
       if (!toolbar) return
       const next =
         kind === "erase"
           ? removeStyleRange(highlights, toolbar.start, toolbar.end)
-          : addStyleRange(highlights, toolbar.start, toolbar.end, kind)
+          : addStyleRange(highlights, toolbar.start, toolbar.end, kind, kind === "hl" ? color || "y" : undefined)
       onChange(next)
       window.getSelection()?.removeAllRanges()
       setToolbar(null)
@@ -200,7 +210,7 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
           return
         }
       }
-      if (!seg.hl && !seg.ul) return
+      if (!seg.hlc && !seg.ul) return
       event.stopPropagation()
       setNotePanel(null)
       setToolbar({
@@ -234,6 +244,17 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
       >
         {segments.map((seg) => {
           const content = text.slice(seg.s, seg.e)
+          // 分類符號：掛在螢光筆標註的起點（上標）
+          const startingSyms = highlights
+            .filter((h) => h.k === "hl" && h.c && HL_CATEGORIES[h.c].sym && Math.max(0, h.s) === seg.s)
+            .map((h) => (
+              <span
+                key={`s-${h.s}-${h.e}`}
+                className={`text-xs align-super font-bold select-none mr-0.5 ${HL_CATEGORIES[h.c!].symText}`}
+              >
+                {HL_CATEGORIES[h.c!].sym}
+              </span>
+            ))
           const endingNotes = notes.filter((n) => clampEnd(n.e) === seg.e)
           const markers = endingNotes.map((note) => (
             <button
@@ -248,16 +269,17 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
               <MessageSquare className="w-3.5 h-3.5 fill-primary/20" />
             </button>
           ))
-          if (!seg.hl && !seg.ul && !seg.noted) {
-            return [<span key={seg.s}>{content}</span>, ...markers]
+          if (!seg.hlc && !seg.ul && !seg.noted) {
+            return [...startingSyms, <span key={seg.s}>{content}</span>, ...markers]
           }
           return [
+            ...startingSyms,
             <mark
               key={seg.s}
               onClick={(e) => handleMarkClick(seg, e)}
               className={[
                 "text-inherit cursor-pointer rounded-sm",
-                seg.hl ? "bg-yellow-200 dark:bg-yellow-500/40" : "bg-transparent",
+                seg.hlc ? HL_CATEGORIES[seg.hlc].mark : "bg-transparent",
                 seg.ul
                   ? "underline decoration-primary decoration-2 underline-offset-4"
                   : seg.noted
@@ -274,28 +296,43 @@ const SourceHighlighter = ({ text, highlights, onChange }: SourceHighlighterProp
 
       {toolbar && (
         <div
-          className="fixed z-[60] -translate-x-1/2 -translate-y-full flex items-center gap-1 bg-popover border border-border rounded-lg shadow-lg px-1.5 py-1"
+          className="fixed z-[60] -translate-x-1/2 -translate-y-full flex flex-col gap-1 bg-popover border border-border rounded-lg shadow-lg px-1.5 py-1.5"
           style={{ left: toolbar.x, top: toolbar.y }}
           onMouseDown={(e) => e.preventDefault()} // 別讓點按鈕弄掉 selection
         >
-          <button onClick={() => applyStyle("hl")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
-            <Highlighter className="w-4 h-4 text-yellow-500" />
-            螢光筆
-          </button>
-          <button onClick={() => applyStyle("ul")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
-            <Underline className="w-4 h-4 text-primary" />
-            底線
-          </button>
-          <button onClick={startNewNote} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
-            <MessageSquarePlus className="w-4 h-4 text-primary" />
-            批註
-          </button>
-          {toolbar.hasStyle && (
-            <button onClick={() => applyStyle("erase")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm text-muted-foreground hover:bg-muted">
-              <Eraser className="w-4 h-4" />
-              清除
+          <div className="flex items-center gap-1">
+            <button onClick={() => applyStyle("hl", "y")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
+              <Highlighter className="w-4 h-4 text-yellow-500" />
+              螢光筆
             </button>
-          )}
+            <button onClick={() => applyStyle("ul")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
+              <Underline className="w-4 h-4 text-primary" />
+              底線
+            </button>
+            <button onClick={startNewNote} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
+              <MessageSquarePlus className="w-4 h-4 text-primary" />
+              批註
+            </button>
+            {toolbar.hasStyle && (
+              <button onClick={() => applyStyle("erase")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm text-muted-foreground hover:bg-muted">
+                <Eraser className="w-4 h-4" />
+                清除
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1 border-t border-border pt-1">
+            {(["g", "r", "b", "p"] as HighlightColor[]).map((c) => (
+              <button
+                key={c}
+                onClick={() => applyStyle("hl", c)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-sm hover:bg-muted"
+              >
+                <span className={`w-2.5 h-2.5 rounded-full ${HL_CATEGORIES[c].dot}`} />
+                {HL_CATEGORIES[c].sym}
+                {HL_CATEGORIES[c].label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

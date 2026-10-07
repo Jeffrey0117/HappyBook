@@ -148,7 +148,13 @@ const ReadingRecords = () => {
                 {rec.source_text ? (
                   expandedId === rec.id ? (
                     <div className="mt-3 border-t border-border pt-3">
-                      <p className="text-xs text-muted-foreground mb-2">選取文字可以畫螢光筆或底線，點標註可以清除</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        選取文字：螢光筆／底線／批註。分類：
+                        <span className="text-green-600 dark:text-green-400 font-medium">＋正例</span>
+                        <span className="text-red-600 dark:text-red-400 font-medium">−反例</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">★核心</span>
+                        <span className="text-purple-600 dark:text-purple-400 font-medium">⚑立場</span>
+                      </p>
                       <SourceHighlighter
                         text={rec.source_text}
                         highlights={rec.highlights || []}

@@ -47,11 +47,18 @@ function lmuHeaders(): Record<string, string> {
   return t ? { authorization: `Bearer ${t}` } : {}
 }
 
-/** 原文標註：source_text 的字元區間 [s, e)，k = 螢光筆 | 底線 | 批註（t = 批註內容，id 供編輯/刪除定位） */
+/**
+ * 原文標註：source_text 的字元區間 [s, e)。
+ * k = 螢光筆 | 底線 | 批註（t = 批註內容，id 供編輯/刪除定位）。
+ * c = 螢光筆分類色：y 重點（預設）| g 正例＋ | r 反例− | b 核心★ | p 立場⚑
+ */
+export type HighlightColor = 'y' | 'g' | 'r' | 'b' | 'p'
+
 export interface Highlight {
   s: number
   e: number
   k: 'hl' | 'ul' | 'note'
+  c?: HighlightColor
   t?: string
   id?: string
 }

@@ -7,10 +7,12 @@ import SourceHighlighter from "@/components/SourceHighlighter"
 import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn, ChevronDown, ChevronUp, Sparkles, Globe, Lock, Eye, EyeOff, Library } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
+import { useProfile } from "@/hooks/use-profile"
 
 const ReadingRecords = () => {
   const navigate = useNavigate()
   const { user, isAuthenticated, isReady, login } = useAuth()
+  const { profile } = useProfile()
   const [records, setRecords] = useState<ReadingRecord[]>([])
   const [books, setBooks] = useState<Record<string, Book>>({})
   const [loading, setLoading] = useState(true)
@@ -81,9 +83,33 @@ const ReadingRecords = () => {
     try {
       await selfizeUser.update("reading_records", rec.id, { visibility: next })
       toast.success(next === "public" ? "已公開：這筆會以引句＋批註出現在你的書牆" : "已設為私人")
+      if (next === "public") createRecordPost(rec)
     } catch (error) {
       toast.error("切換失敗，再試一次")
     }
+  }
+
+  // 公開紀錄自動進動態 feed（同一筆只發一次，失敗靜默）
+  const createRecordPost = async (rec: ReadingRecord) => {
+    if (!profile) return
+    try {
+      const { items } = await selfize.list("posts", { ref_id: rec.id, limit: "1" })
+      if (items.length > 0) return
+      const book = books[rec.book_id]
+      const text = rec.source_text || ""
+      const firstHl = (rec.highlights || []).find((h) => h.k === "hl" && text.slice(h.s, h.e).trim())
+      await selfize.create("posts", {
+        user_id: profile.id,
+        text: rec.my_note?.trim() || `公開了《${book?.title || "一本書"}》的閱讀筆記`,
+        book_id: rec.book_id,
+        book_title: book?.title || null,
+        book_cover: book?.cover_url || null,
+        quote: firstHl ? { text: text.slice(firstHl.s, firstHl.e).slice(0, 120), c: firstHl.c || "y" } : null,
+        kind: "record",
+        ref_id: rec.id,
+        likes: [],
+      })
+    } catch {}
   }
 
   const handleDelete = async (id: string) => {

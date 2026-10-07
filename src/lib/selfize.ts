@@ -236,3 +236,29 @@ export interface Review {
 export interface ReviewExpanded extends Review {
   user_id_expanded?: Profile
 }
+
+// --- Feed post types（讀書版 Threads）---
+
+export interface PostQuote {
+  text: string
+  c: HighlightColor
+}
+
+export interface Post {
+  id: string
+  user_id: string
+  text: string
+  book_id: string | null
+  book_title: string | null
+  book_cover: string | null
+  quote: PostQuote | null
+  kind: 'post' | 'review' | 'record'
+  ref_id: string | null
+  likes: string[] | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PostExpanded extends Post {
+  user_id_expanded?: Profile
+}

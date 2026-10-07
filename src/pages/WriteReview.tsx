@@ -87,13 +87,26 @@ const WriteReview = () => {
         })
         toast.success("心得已更新")
       } else {
-        await selfize.create("reviews", {
+        const created = await selfize.create<Review>("reviews", {
           user_id: profile.id,
           book_id: book.id,
           book_title: book.title,
           book_author: book.author || "",
           content: content.trim(),
         })
+        // 新書評自動進動態 feed（失敗不影響發表）
+        try {
+          await selfize.create("posts", {
+            user_id: profile.id,
+            text: content.trim(),
+            book_id: book.id,
+            book_title: book.title,
+            book_cover: book.cover_url || null,
+            kind: "review",
+            ref_id: created.id,
+            likes: [],
+          })
+        } catch {}
         toast.success("心得已發表")
       }
       navigate("/my")

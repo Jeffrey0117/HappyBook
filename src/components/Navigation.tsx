@@ -25,7 +25,7 @@ const Navigation = () => {
   // 四格常駐：未登入點「紀錄／書架」會由頁面自己引導登入
   const navItems = [
     { path: "/browse", icon: Home, label: "瀏覽" },
-    { path: "/reviews", icon: PenLine, label: "心得" },
+    { path: "/reviews", icon: PenLine, label: "動態" },
     { path: "/my/records", icon: NotebookPen, label: "紀錄" },
     { path: "/my", icon: BookOpen, label: "書架" },
   ]

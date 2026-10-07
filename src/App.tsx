@@ -10,7 +10,6 @@ import AddBook from "./pages/AddBook";
 import SwapInbox from "./pages/SwapInbox";
 import SwapDetail from "./pages/SwapDetail";
 import WriteReview from "./pages/WriteReview";
-import Reviews from "./pages/Reviews";
 import UserReviews from "./pages/UserReviews";
 import SwapWall from "./pages/SwapWall";
 import BookDetail from "./pages/BookDetail";
@@ -22,6 +21,7 @@ import AddReadingRecord from "./pages/AddReadingRecord";
 import AskAI from "./pages/AskAI";
 import PublicShelf from "./pages/PublicShelf";
 import Landing from "./pages/Landing";
+import Feed from "./pages/Feed";
 
 const queryClient = new QueryClient();
 
@@ -43,7 +43,7 @@ const App = () => (
           <Route path="/shelf/:userId" element={<PublicShelf />} />
           <Route path="/my/edit/:id" element={<AddBook />} />
           <Route path="/my/review/:bookId" element={<WriteReview />} />
-          <Route path="/reviews" element={<Reviews />} />
+          <Route path="/reviews" element={<Feed />} />
           <Route path="/reviews/user/:userId" element={<UserReviews />} />
           <Route path="/book/:title" element={<BookDetail />} />
           <Route path="/wall" element={<SwapWall />} />

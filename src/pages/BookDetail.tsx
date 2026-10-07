@@ -164,122 +164,16 @@ const BookDetail = () => {
         </div>
       </header>
 
-      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-8">
+      <main className="max-w-screen-xl mx-auto px-4 py-6">
         {loading ? (
           <div className="space-y-4">
             <div className="h-48 bg-muted animate-pulse rounded-xl" />
             <div className="h-32 bg-muted animate-pulse rounded-xl" />
           </div>
         ) : (
-          <>
-            {/* Book info header */}
-            <section className="flex gap-4 items-start">
-              {coverUrl ? (
-                <img
-                  src={coverUrl}
-                  alt={decodedTitle}
-                  className="w-24 h-32 object-cover rounded-lg shadow-md flex-shrink-0"
-                />
-              ) : (
-                <div className="w-24 h-32 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                  <BookMarked className="h-8 w-8 text-muted-foreground" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0 space-y-2">
-                <h2 className="text-2xl font-bold">{decodedTitle}</h2>
-                {author && (
-                  <p className="text-muted-foreground">{author}</p>
-                )}
-                <Badge variant="default" className="gap-1">
-                  {books.length} 人擁有
-                </Badge>
-              </div>
-            </section>
-
-            {/* Owners section */}
-            <section className="space-y-4">
-              <h3 className="text-lg font-semibold">擁有者</h3>
-              {books.length === 0 ? (
-                <p className="text-muted-foreground">目前無人擁有此書</p>
-              ) : (
-                <div className="space-y-3">
-                  {books.map((book) => {
-                    const ownerProfile = book.owner_id_expanded
-                    const isOwnBook = book.owner_id === profile?.id
-                    const bookCount = books.filter(
-                      (b) => b.owner_id === book.owner_id
-                    ).length
-                    const xp = bookCount * 10
-                    const levelInfo = getLevelInfo(xp)
-
-                    return (
-                      <Card key={book.id}>
-                        <CardContent className="p-4 flex items-center gap-3">
-                          <Link to={`/user/${book.owner_id}`}>
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage
-                                src={ownerProfile?.avatar_url || undefined}
-                              />
-                              <AvatarFallback>
-                                <User className="h-4 w-4" />
-                              </AvatarFallback>
-                            </Avatar>
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <Link
-                              to={`/user/${book.owner_id}`}
-                              className="font-medium text-sm hover:text-primary transition-colors truncate block"
-                            >
-                              {ownerProfile?.display_name || "未知"}
-                            </Link>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>Lv.{levelInfo.level} {levelInfo.title}</span>
-                              {book.condition && (
-                                <>
-                                  <span>·</span>
-                                  <span>書況：{book.condition}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          {isOwnBook ? (
-                            <div className="flex gap-2 flex-shrink-0">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/my/edit/${book.id}`)}
-                              >
-                                <Edit className="h-3 w-3 mr-1" />
-                                編輯
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/my/review/${book.id}`)}
-                              >
-                                <FileText className="h-3 w-3 mr-1" />
-                                寫心得
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSwapRequest(book)}
-                              className="flex-shrink-0"
-                            >
-                              <ArrowLeftRight className="h-3 w-3 mr-1" />
-                              跟他換
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
-
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 左大欄：讀者筆記＋心得（手機時排在書籍資訊後面） */}
+            <div className="lg:col-span-2 space-y-8 order-last lg:order-none">
             {/* Public reading notes section */}
             {publicNotes.length > 0 && (
               <section className="space-y-4">
@@ -371,7 +265,88 @@ const BookDetail = () => {
                 </div>
               )}
             </section>
-          </>
+            </div>
+
+            {/* 右側欄：書籍資訊＋擁有者 */}
+            <aside className="space-y-4">
+              <div className="bg-card border border-border rounded-xl p-4 text-center">
+                {coverUrl ? (
+                  <img
+                    src={coverUrl}
+                    alt={decodedTitle}
+                    className="w-32 mx-auto rounded-lg shadow-md mb-3"
+                  />
+                ) : (
+                  <div className="w-32 h-44 mx-auto bg-muted rounded-lg flex items-center justify-center mb-3">
+                    <BookMarked className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+                <h2 className="text-lg font-bold leading-snug">{decodedTitle}</h2>
+                {author && (
+                  <p className="text-sm text-muted-foreground mt-1">{author}</p>
+                )}
+                <Badge variant="default" className="gap-1 mt-2">
+                  {books.length} 人擁有
+                </Badge>
+              </div>
+
+              <div className="bg-card border border-border rounded-xl p-4">
+                <h3 className="font-semibold mb-3">擁有者</h3>
+                {books.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">目前無人擁有此書</p>
+                ) : (
+                  <div className="space-y-3">
+                    {books.map((book) => {
+                      const ownerProfile = book.owner_id_expanded
+                      const isOwnBook = book.owner_id === profile?.id
+                      const bookCount = books.filter(
+                        (b) => b.owner_id === book.owner_id
+                      ).length
+                      const xp = bookCount * 10
+                      const levelInfo = getLevelInfo(xp)
+
+                      return (
+                        <div key={book.id} className="flex items-center gap-2 flex-wrap">
+                          <Link to={`/user/${book.owner_id}`}>
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={ownerProfile?.avatar_url || undefined} />
+                              <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                            </Avatar>
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              to={`/user/${book.owner_id}`}
+                              className="font-medium text-sm hover:text-primary transition-colors truncate block"
+                            >
+                              {ownerProfile?.display_name || "未知"}
+                            </Link>
+                            <p className="text-xs text-muted-foreground truncate">
+                              Lv.{levelInfo.level} {levelInfo.title}
+                              {book.condition ? `，書況：${book.condition}` : ""}
+                            </p>
+                          </div>
+                          {isOwnBook ? (
+                            <div className="flex gap-1.5">
+                              <Button size="sm" variant="outline" onClick={() => navigate(`/my/edit/${book.id}`)}>
+                                <Edit className="h-3 w-3 mr-1" />編輯
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => navigate(`/my/review/${book.id}`)}>
+                                <FileText className="h-3 w-3 mr-1" />寫心得
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => handleSwapRequest(book)}>
+                              <ArrowLeftRight className="h-3 w-3 mr-1" />跟他換
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </aside>
+          </div>
         )}
       </main>
 

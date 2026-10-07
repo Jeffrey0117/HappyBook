@@ -223,28 +223,29 @@ const WriteReview = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setPreviewing(!previewing)}
+                className="lg:hidden"
               >
                 {previewing ? <Edit className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
                 {previewing ? "編輯" : "預覽"}
               </Button>
             </div>
           </div>
-          {previewing ? (
-            <div className="prose-review min-h-[200px] p-4 rounded-md border bg-card">
-              {content.trim() ? (
-                <ReactMarkdown>{content.replace(/\n/g, "  \n")}</ReactMarkdown>
-              ) : (
-                <p className="text-muted-foreground italic">還沒有內容</p>
-              )}
-            </div>
-          ) : (
+          {/* 桌面：左編輯右即時預覽（所見即所得）；手機：切換模式 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="寫下你對這本書的感想...&#10;&#10;支援 Markdown 格式：**粗體**、*斜體*、## 標題、- 列表"
-              className="min-h-[200px] resize-y font-mono text-sm"
+              className={`min-h-[320px] resize-y font-mono text-sm ${previewing ? "hidden lg:block" : ""}`}
             />
-          )}
+            <div className={`prose-review min-h-[320px] p-4 rounded-md border bg-card overflow-y-auto ${previewing ? "" : "hidden lg:block"}`}>
+              {content.trim() ? (
+                <ReactMarkdown>{content.replace(/\n/g, "  \n")}</ReactMarkdown>
+              ) : (
+                <p className="text-muted-foreground italic">右邊會即時顯示排版後的樣子</p>
+              )}
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground">
             {content.length} 字 · 支援 Markdown
           </p>

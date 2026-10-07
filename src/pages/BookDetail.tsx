@@ -304,6 +304,16 @@ const BookDetail = () => {
                             <span className="text-xs text-muted-foreground whitespace-nowrap">
                               {formatDate(review.created_at)}
                             </span>
+                            {profile?.id === review.user_id && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/my/review/${review.book_id}`)}
+                              >
+                                <Edit className="h-3 w-3 mr-1" />
+                                編輯
+                              </Button>
+                            )}
                           </div>
                         </div>
                         <div className="prose-review text-sm">

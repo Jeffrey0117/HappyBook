@@ -3,16 +3,32 @@ import { Link, useNavigate } from "react-router-dom"
 import { selfize, selfizeUser, type Book, type ReadingRecord } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
-import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn } from "lucide-react"
+import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn, ChevronDown, ChevronUp, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 
 const ReadingRecords = () => {
   const navigate = useNavigate()
-  const { isAuthenticated, isReady, login } = useAuth()
+  const { user, isAuthenticated, isReady, login } = useAuth()
   const [records, setRecords] = useState<ReadingRecord[]>([])
   const [books, setBooks] = useState<Record<string, Book>>({})
   const [loading, setLoading] = useState(true)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const cacheKey = user ? `hb_records_cache_${user.id}` : null
+
+  // 先出快取（秒開），再背景更新
+  useEffect(() => {
+    if (!cacheKey) return
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || "null")
+      if (cached?.records) {
+        setRecords(cached.records)
+        setBooks(cached.books || {})
+        setLoading(false)
+      }
+    } catch {}
+  }, [cacheKey])
 
   useEffect(() => {
     if (isReady && isAuthenticated) fetchData()
@@ -21,14 +37,20 @@ const ReadingRecords = () => {
 
   const fetchData = async () => {
     try {
-      const { items } = await selfizeUser.list<ReadingRecord>("reading_records", { perPage: "200", sort: "-created_at" })
-      setRecords(items)
-      const { items: allBooks } = await selfize.list<Book>("books", { perPage: "200" })
+      const [{ items }, { items: allBooks }] = await Promise.all([
+        selfizeUser.list<ReadingRecord>("reading_records", { perPage: "200", sort: "-created_at" }),
+        selfize.list<Book>("books", { perPage: "200" }),
+      ])
       const map: Record<string, Book> = {}
       for (const b of allBooks) map[b.id] = b
+      setRecords(items)
       setBooks(map)
+      if (cacheKey) {
+        try { localStorage.setItem(cacheKey, JSON.stringify({ records: items, books: map })) } catch {}
+      }
     } catch (error) {
-      toast.error("載入閱讀紀錄失敗")
+      // 快取已經顯示內容的話，背景更新失敗就安靜略過
+      if (records.length === 0) toast.error("載入閱讀紀錄失敗")
     } finally {
       setLoading(false)
     }
@@ -110,10 +132,37 @@ const ReadingRecords = () => {
                   </button>
                 </div>
                 {rec.source_text ? (
-                  <p className="text-sm mt-2 text-muted-foreground line-clamp-3 whitespace-pre-line">{rec.source_text}</p>
+                  expandedId === rec.id ? (
+                    <div className="mt-3 text-[15px] leading-7 whitespace-pre-line border-t border-border pt-3">
+                      {rec.source_text}
+                    </div>
+                  ) : (
+                    <p
+                      className="text-sm mt-2 text-muted-foreground line-clamp-3 whitespace-pre-line cursor-pointer"
+                      onClick={() => setExpandedId(rec.id)}
+                    >
+                      {rec.source_text}
+                    </p>
+                  )
+                ) : null}
+                {expandedId === rec.id && rec.ai_summary ? (
+                  <div className="mt-3 text-sm bg-muted/60 rounded-lg p-3 whitespace-pre-line">
+                    <p className="font-medium mb-1 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> AI 重點</p>
+                    {rec.ai_summary}
+                  </div>
                 ) : null}
                 {rec.my_note ? (
-                  <p className="text-sm mt-2 border-l-2 border-primary pl-2 whitespace-pre-line">💭 {rec.my_note}</p>
+                  <p className={`text-sm mt-2 border-l-2 border-primary pl-2 whitespace-pre-line ${expandedId === rec.id ? "" : "line-clamp-2"}`}>💭 {rec.my_note}</p>
+                ) : null}
+                {rec.source_text || rec.ai_summary ? (
+                  <button
+                    onClick={() => setExpandedId(expandedId === rec.id ? null : rec.id)}
+                    className="mt-2 flex items-center gap-1 text-sm text-primary"
+                  >
+                    {expandedId === rec.id
+                      ? <><ChevronUp className="w-4 h-4" />收合</>
+                      : <><ChevronDown className="w-4 h-4" />閱讀全文</>}
+                  </button>
                 ) : null}
                 {(rec.images || []).length > 0 && (
                   <div className="flex gap-2 mt-2 overflow-x-auto">

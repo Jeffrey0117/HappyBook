@@ -230,8 +230,22 @@ export interface Review {
   book_author: string
   content: string
   rating: 'up' | 'down' | null
+  likes: string[] | null
   created_at: string
   updated_at: string
+}
+
+export interface ReviewComment {
+  id: string
+  review_id: string
+  user_id: string
+  text: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ReviewCommentExpanded extends ReviewComment {
+  user_id_expanded?: Profile
 }
 
 export interface ReviewExpanded extends Review {

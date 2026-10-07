@@ -5,6 +5,7 @@ import {
   type BookWithOwner,
   type Book,
   type ReviewExpanded,
+  type ReviewCommentExpanded,
 } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,6 +20,9 @@ import {
   Edit,
   FileText,
   User,
+  Heart,
+  MessageCircle,
+  Loader2,
 } from "lucide-react"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
 import { readCache, writeCache } from "@/lib/page-cache"
@@ -50,6 +54,11 @@ const BookDetail = () => {
   const [reviewsLoading, setReviewsLoading] = useState(true)
   const [notesLoading, setNotesLoading] = useState(true)
   const [swapTarget, setSwapTarget] = useState<BookWithOwner | null>(null)
+  const [allBooks, setAllBooks] = useState<Book[]>([])
+  const [openComments, setOpenComments] = useState<string | null>(null)
+  const [comments, setComments] = useState<Record<string, ReviewCommentExpanded[]>>({})
+  const [commentText, setCommentText] = useState("")
+  const [sendingComment, setSendingComment] = useState(false)
 
   useEffect(() => {
     if (decodedTitle) {
@@ -71,6 +80,15 @@ const BookDetail = () => {
       }
       fetchBooks()
       fetchReviews()
+      // 「接著讀」推薦用的全站書單（快取優先）
+      const cab = readCache<Book[]>("browse_books")
+      if (cab) setAllBooks(cab)
+      else {
+        selfize
+          .list<Book>("books", { status: "available", sort: "-created_at", limit: "500" })
+          .then(({ items }) => setAllBooks(items))
+          .catch(() => {})
+      }
     }
   }, [decodedTitle])
 
@@ -132,6 +150,65 @@ const BookDetail = () => {
     }
   }
 
+  const toggleReviewLike = async (review: ReviewExpanded) => {
+    if (!profile) {
+      login()
+      return
+    }
+    const likes = review.likes || []
+    const liked = likes.includes(profile.id)
+    const next = liked ? likes.filter((id) => id !== profile.id) : [...likes, profile.id]
+    setReviews((prev) => prev.map((r) => (r.id === review.id ? { ...r, likes: next } : r)))
+    try {
+      await selfize.update("reviews", review.id, { likes: next })
+    } catch (error) {
+      // 失敗讓下次 fetch 校正
+    }
+  }
+
+  const toggleComments = async (review: ReviewExpanded) => {
+    if (openComments === review.id) {
+      setOpenComments(null)
+      return
+    }
+    setOpenComments(review.id)
+    setCommentText("")
+    if (!comments[review.id]) {
+      try {
+        const { items } = await selfize.list<ReviewCommentExpanded>("review_comments", {
+          review_id: review.id,
+          sort: "created_at",
+          limit: "100",
+          expand: "user_id",
+        })
+        setComments((prev) => ({ ...prev, [review.id]: items }))
+      } catch (error) {
+        setComments((prev) => ({ ...prev, [review.id]: [] }))
+      }
+    }
+  }
+
+  const submitComment = async (review: ReviewExpanded) => {
+    if (!profile || !commentText.trim()) return
+    setSendingComment(true)
+    try {
+      const created = await selfize.create<ReviewCommentExpanded>("review_comments", {
+        review_id: review.id,
+        user_id: profile.id,
+        text: commentText.trim(),
+      })
+      setComments((prev) => ({
+        ...prev,
+        [review.id]: [...(prev[review.id] || []), { ...created, user_id_expanded: profile }],
+      }))
+      setCommentText("")
+    } catch (error) {
+      toast.error("留言失敗，再試一次")
+    } finally {
+      setSendingComment(false)
+    }
+  }
+
   const handleSwapRequest = (book: BookWithOwner) => {
     if (!isAuthenticated) {
       login()
@@ -170,6 +247,18 @@ const BookDetail = () => {
 
   const coverUrl = books.find((b) => b.cover_url)?.cover_url || null
   const author = books.find((b) => b.author)?.author || null
+
+  // 接著讀：跟這本書共享標籤的其他書
+  const currentTags = new Set(books.flatMap((b) => b.tags || []))
+  const relatedMap = new Map<string, Book>()
+  for (const b of allBooks) {
+    if (b.title.toLowerCase().trim() === decodedTitle.toLowerCase().trim()) continue
+    if (!(b.tags || []).some((t) => currentTags.has(t))) continue
+    const key = b.title.trim()
+    const existing = relatedMap.get(key)
+    if (!existing || (!existing.cover_url && b.cover_url)) relatedMap.set(key, b)
+  }
+  const related = [...relatedMap.values()].slice(0, 6)
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -317,15 +406,103 @@ const BookDetail = () => {
                             )}
                           </div>
                         </div>
-                        <div className="prose-review text-sm">
+                        <div className="prose-review">
                           <ReactMarkdown rehypePlugins={reviewRehypePlugins}>{mdPreserveBreaks(review.content)}</ReactMarkdown>
                         </div>
+
+                        {/* 點讚＋留言 */}
+                        <div className="flex items-center gap-4 pt-2 border-t border-border">
+                          <button
+                            onClick={() => toggleReviewLike(review)}
+                            className={`flex items-center gap-1 text-sm transition-colors ${profile && (review.likes || []).includes(profile.id) ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
+                          >
+                            <Heart className={`w-4 h-4 ${profile && (review.likes || []).includes(profile.id) ? "fill-red-500" : ""}`} />
+                            {(review.likes || []).length > 0 ? (review.likes || []).length : ""}
+                          </button>
+                          <button
+                            onClick={() => toggleComments(review)}
+                            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            留言{comments[review.id] ? `（${comments[review.id].length}）` : ""}
+                          </button>
+                        </div>
+
+                        {openComments === review.id && (
+                          <div className="border-l-2 border-border pl-3 space-y-3">
+                            {(comments[review.id] || []).map((c) => (
+                              <div key={c.id} className="flex gap-2">
+                                <Link to={`/user/${c.user_id}`} className="shrink-0">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={c.user_id_expanded?.avatar_url || undefined} />
+                                    <AvatarFallback><User className="h-3 w-3" /></AvatarFallback>
+                                  </Avatar>
+                                </Link>
+                                <div className="min-w-0">
+                                  <p className="text-xs text-muted-foreground">
+                                    <Link to={`/user/${c.user_id}`} className="font-medium text-foreground hover:text-primary">
+                                      {c.user_id_expanded?.display_name || "讀者"}
+                                    </Link>
+                                    　{formatDate(c.created_at)}
+                                  </p>
+                                  <p className="text-sm whitespace-pre-line">{c.text}</p>
+                                </div>
+                              </div>
+                            ))}
+                            {isAuthenticated && profile ? (
+                              <div className="flex gap-2 items-end">
+                                <textarea
+                                  value={commentText}
+                                  onChange={(e) => setCommentText(e.target.value)}
+                                  rows={1}
+                                  placeholder="留言…"
+                                  className="flex-1 text-sm rounded-md border border-input bg-background p-2 resize-none min-h-[36px]"
+                                />
+                                <Button size="sm" onClick={() => submitComment(review)} disabled={sendingComment || !commentText.trim()}>
+                                  {sendingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : "送出"}
+                                </Button>
+                              </div>
+                            ) : (
+                              <button onClick={() => login()} className="text-sm text-primary">登入後留言</button>
+                            )}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               )}
             </section>
+
+            {/* 接著讀：共享標籤的其他書 */}
+            {related.length > 0 && (
+              <section className="space-y-4">
+                <h3 className="text-lg font-semibold">接著讀</h3>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                  {related.map((b) => (
+                    <Link
+                      key={b.title}
+                      to={`/book/${encodeURIComponent(b.title)}`}
+                      className="shrink-0 w-24 group"
+                      title={b.title}
+                    >
+                      {b.cover_url ? (
+                        <img
+                          src={b.cover_url}
+                          alt={b.title}
+                          className="w-full aspect-[2/3] object-cover rounded-lg border border-border shadow transition-transform group-hover:-translate-y-1"
+                        />
+                      ) : (
+                        <div className="w-full aspect-[2/3] rounded-lg border border-border bg-muted flex items-center justify-center p-2">
+                          <span className="text-xs text-muted-foreground text-center line-clamp-3">{b.title}</span>
+                        </div>
+                      )}
+                      <p className="text-xs mt-1.5 line-clamp-2 group-hover:text-primary transition-colors">{b.title}</p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
             </div>
 
             {/* 右側欄：書籍資訊＋擁有者 */}

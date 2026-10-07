@@ -255,6 +255,7 @@ export interface Post {
   kind: 'post' | 'review' | 'record'
   ref_id: string | null
   likes: string[] | null
+  reply_to: string | null
   created_at: string
   updated_at: string
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { selfize, type PostExpanded, type Book } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
@@ -9,8 +9,7 @@ import { HL_CATEGORIES } from "@/components/SourceHighlighter"
 import { readCache, writeCache } from "@/lib/page-cache"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
-import { useMyBooks } from "@/hooks/use-my-books"
-import { Heart, User, BookOpen, Loader2, PenLine, NotebookPen } from "lucide-react"
+import { Heart, User, BookOpen, Loader2, PenLine, NotebookPen, MessageCircle } from "lucide-react"
 import { toast } from "sonner"
 
 function timeAgo(dateStr: string): string {
@@ -30,16 +29,42 @@ const KIND_LABEL: Record<string, string> = {
   record: "公開了閱讀筆記",
 }
 
+interface BookOpt {
+  id: string
+  title: string
+  cover: string | null
+}
+
+/** 把內文裡的 #書名 上色 */
+function renderPostText(text: string, bookTitle: string | null) {
+  if (!bookTitle || !text.includes(`#${bookTitle}`)) {
+    return <>{text}</>
+  }
+  const parts = text.split(`#${bookTitle}`)
+  return (
+    <>
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && <span className="text-primary font-medium">#{bookTitle}</span>}
+          {part}
+        </span>
+      ))}
+    </>
+  )
+}
+
 const Feed = () => {
   const { isAuthenticated, login } = useAuth()
   const { profile } = useProfile()
-  const { books: myBooks } = useMyBooks(profile?.id)
 
   const [posts, setPosts] = useState<PostExpanded[]>([])
+  const [allBooks, setAllBooks] = useState<BookOpt[]>([])
   const [loading, setLoading] = useState(true)
   const [text, setText] = useState("")
-  const [bookId, setBookId] = useState("")
   const [posting, setPosting] = useState(false)
+  const [openReplies, setOpenReplies] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState("")
+  const [replying, setReplying] = useState(false)
 
   useEffect(() => {
     const cached = readCache<PostExpanded[]>("feed_posts")
@@ -48,13 +73,14 @@ const Feed = () => {
       setLoading(false)
     }
     fetchPosts()
+    fetchBooks()
   }, [])
 
   const fetchPosts = async () => {
     try {
       const { items } = await selfize.list<PostExpanded>("posts", {
         sort: "-created_at",
-        perPage: "100",
+        perPage: "200",
         expand: "user_id",
       })
       setPosts(items)
@@ -66,28 +92,96 @@ const Feed = () => {
     }
   }
 
+  const fetchBooks = async () => {
+    try {
+      const { items } = await selfize.list<Book>("books", { perPage: "500", sort: "-created_at" })
+      const seen = new Map<string, BookOpt>()
+      for (const b of items) {
+        const key = b.title.trim()
+        const existing = seen.get(key)
+        if (!existing) {
+          seen.set(key, { id: b.id, title: key, cover: b.cover_url })
+        } else if (!existing.cover && b.cover_url) {
+          seen.set(key, { ...existing, cover: b.cover_url })
+        }
+      }
+      setAllBooks([...seen.values()])
+    } catch (error) {
+      // 建議清單缺了也能發（但發布時解析不到書會擋）
+    }
+  }
+
+  // # 自動建議：抓文字結尾的 #片段
+  const tagFrag = useMemo(() => {
+    const m = /#([^#\s]*)$/.exec(text)
+    return m ? m[1] : null
+  }, [text])
+
+  const suggestions = useMemo(() => {
+    if (tagFrag === null) return []
+    const q = tagFrag.toLowerCase()
+    return allBooks.filter((b) => b.title.toLowerCase().includes(q)).slice(0, 5)
+  }, [tagFrag, allBooks])
+
+  const applySuggestion = (b: BookOpt) => {
+    setText(text.replace(/#([^#\s]*)$/, `#${b.title} `))
+  }
+
+  // 解析 #書名 → 掛書（取最長符合的書名，支援含空格的書名）
+  const resolveBook = (): BookOpt | null => {
+    const lower = text.toLowerCase()
+    const sorted = [...allBooks].sort((a, b) => b.title.length - a.title.length)
+    for (const b of sorted) {
+      if (lower.includes(`#${b.title.toLowerCase()}`)) return b
+    }
+    return null
+  }
+
   const handlePost = async () => {
     if (!profile || !text.trim()) return
+    const book = resolveBook()
+    if (!book) {
+      toast.error("用 #書名 標記這則在聊哪本書（打 # 會跳建議）")
+      return
+    }
     setPosting(true)
     try {
-      const book = myBooks.find((b: Book) => b.id === bookId)
       await selfize.create("posts", {
         user_id: profile.id,
         text: text.trim(),
-        book_id: book?.id || null,
-        book_title: book?.title || null,
-        book_cover: book?.cover_url || null,
+        book_id: book.id,
+        book_title: book.title,
+        book_cover: book.cover,
         kind: "post",
         likes: [],
       })
       setText("")
-      setBookId("")
       toast.success("發布了！")
       fetchPosts()
     } catch (error) {
       toast.error("發布失敗，再試一次")
     } finally {
       setPosting(false)
+    }
+  }
+
+  const handleReply = async (post: PostExpanded) => {
+    if (!profile || !replyText.trim()) return
+    setReplying(true)
+    try {
+      await selfize.create("posts", {
+        user_id: profile.id,
+        text: replyText.trim(),
+        reply_to: post.id,
+        kind: "post",
+        likes: [],
+      })
+      setReplyText("")
+      fetchPosts()
+    } catch (error) {
+      toast.error("回覆失敗，再試一次")
+    } finally {
+      setReplying(false)
     }
   }
 
@@ -107,6 +201,10 @@ const Feed = () => {
     }
   }
 
+  const topPosts = posts.filter((p) => !p.reply_to)
+  const repliesOf = (id: string) =>
+    posts.filter((p) => p.reply_to === id).sort((a, b) => a.created_at.localeCompare(b.created_at))
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="max-w-screen-sm mx-auto px-4 pt-6">
@@ -120,25 +218,33 @@ const Feed = () => {
                 <AvatarImage src={profile.avatar_url || undefined} />
                 <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 relative">
                 <Textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   rows={2}
-                  placeholder="在讀什麼？聊聊吧"
+                  placeholder="在讀什麼？用 #書名 標記那本書"
                   className="resize-none border-0 bg-transparent px-0 focus-visible:ring-0 text-[15px]"
                 />
-                <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
-                  <select
-                    value={bookId}
-                    onChange={(e) => setBookId(e.target.value)}
-                    className="h-8 text-sm rounded-md border border-input bg-background px-2 max-w-[60%]"
-                  >
-                    <option value="">不掛書</option>
-                    {myBooks.map((b: Book) => (
-                      <option key={b.id} value={b.id}>📖 {b.title}</option>
+                {suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-20 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                    {suggestions.map((b) => (
+                      <button
+                        key={b.id}
+                        onClick={() => applySuggestion(b)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                      >
+                        {b.cover ? (
+                          <img src={b.cover} alt="" className="w-6 h-8 object-cover rounded shrink-0" />
+                        ) : (
+                          <BookOpen className="w-4 h-4 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="truncate">#{b.title}</span>
+                      </button>
                     ))}
-                  </select>
+                  </div>
+                )}
+                <div className="flex items-center justify-end mt-2">
                   <Button size="sm" onClick={handlePost} disabled={posting || !text.trim()}>
                     {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : "發布"}
                   </Button>
@@ -160,17 +266,19 @@ const Feed = () => {
               <div key={i} className="h-32 bg-muted animate-pulse rounded-xl" />
             ))}
           </div>
-        ) : posts.length === 0 ? (
+        ) : topPosts.length === 0 ? (
           <div className="text-center pt-12 text-muted-foreground">
             <PenLine className="w-10 h-10 mx-auto mb-3 opacity-40" />
             <p>還沒有動態，發第一則吧。</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {posts.map((post) => {
+            {topPosts.map((post) => {
               const author = post.user_id_expanded
               const likes = post.likes || []
               const liked = !!profile && likes.includes(profile.id)
+              const replies = repliesOf(post.id)
+              const repliesOpen = openReplies === post.id
               return (
                 <article key={post.id} className="bg-card border border-border rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -194,7 +302,9 @@ const Feed = () => {
                     )}
                   </div>
 
-                  <p className="text-[15px] whitespace-pre-line leading-relaxed line-clamp-6">{post.text}</p>
+                  <p className="text-[15px] whitespace-pre-line leading-relaxed line-clamp-6">
+                    {renderPostText(post.text, post.book_title)}
+                  </p>
 
                   {post.quote?.text && (
                     <blockquote className={`mt-2 text-sm rounded-md px-3 py-2 ${HL_CATEGORIES[post.quote.c || "y"]?.mark || "bg-muted"}`}>
@@ -216,7 +326,7 @@ const Feed = () => {
                     </Link>
                   )}
 
-                  <div className="mt-2">
+                  <div className="mt-2 flex items-center gap-4">
                     <button
                       onClick={() => toggleLike(post)}
                       className={`flex items-center gap-1 text-sm transition-colors ${liked ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
@@ -224,7 +334,61 @@ const Feed = () => {
                       <Heart className={`w-4 h-4 ${liked ? "fill-red-500" : ""}`} />
                       {likes.length > 0 ? likes.length : ""}
                     </button>
+                    <button
+                      onClick={() => {
+                        setOpenReplies(repliesOpen ? null : post.id)
+                        setReplyText("")
+                      }}
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      {replies.length > 0 ? replies.length : ""}
+                    </button>
                   </div>
+
+                  {/* 回覆區 */}
+                  {repliesOpen && (
+                    <div className="mt-3 border-l-2 border-border pl-3 space-y-3">
+                      {replies.map((r) => {
+                        const rAuthor = r.user_id_expanded
+                        return (
+                          <div key={r.id} className="flex gap-2">
+                            <Link to={`/user/${r.user_id}`} className="shrink-0">
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={rAuthor?.avatar_url || undefined} />
+                                <AvatarFallback><User className="h-3 w-3" /></AvatarFallback>
+                              </Avatar>
+                            </Link>
+                            <div className="min-w-0">
+                              <p className="text-xs text-muted-foreground">
+                                <Link to={`/user/${r.user_id}`} className="font-medium text-foreground hover:text-primary">
+                                  {rAuthor?.display_name || "讀者"}
+                                </Link>
+                                　{timeAgo(r.created_at)}
+                              </p>
+                              <p className="text-sm whitespace-pre-line">{r.text}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {isAuthenticated && profile ? (
+                        <div className="flex gap-2 items-end">
+                          <Textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            rows={1}
+                            placeholder="回覆…"
+                            className="resize-none text-sm min-h-[36px]"
+                          />
+                          <Button size="sm" onClick={() => handleReply(post)} disabled={replying || !replyText.trim()}>
+                            {replying ? <Loader2 className="h-4 w-4 animate-spin" /> : "回覆"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <button onClick={() => login()} className="text-sm text-primary">登入後回覆</button>
+                      )}
+                    </div>
+                  )}
                 </article>
               )
             })}

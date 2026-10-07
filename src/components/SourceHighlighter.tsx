@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react"
-import { Highlighter, Underline, Eraser, MessageSquarePlus, MessageSquare, Pencil, Trash2, X, List, ChevronDown, ChevronUp } from "lucide-react"
+import { Highlighter, Underline, Eraser, MessageSquarePlus, MessageSquare, Pencil, Trash2, X, List, ChevronDown, ChevronUp, Send } from "lucide-react"
 import type { Highlight, HighlightColor } from "@/lib/selfize"
 
 /**
@@ -39,6 +39,8 @@ interface SourceHighlighterProps {
   onChange: (next: Highlight[]) => void
   /** 展演模式：false = 隱藏所有標註與目錄、停用標註互動，只留排版後的乾淨原文 */
   showMarks?: boolean
+  /** 選取／點標註 → 把這句發成動態貼文（由宿主開發文視窗） */
+  onShareQuote?: (quote: { text: string; c: HighlightColor }) => void
 }
 
 const genId = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36)
@@ -165,7 +167,7 @@ function buildSegments(text: string, hls: Highlight[], lineStyles: LineStyle[]):
   return segs
 }
 
-const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMarks = true }: SourceHighlighterProps) => {
+const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMarks = true, onShareQuote }: SourceHighlighterProps) => {
   // 展演模式下用空陣列渲染（乾淨原文），但 onChange 永遠以真實資料為基底，避免覆寫
   const highlights = showMarks ? realHighlights : []
   const containerRef = useRef<HTMLDivElement>(null)
@@ -226,6 +228,16 @@ const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMar
     },
     [toolbar, highlights, onChange]
   )
+
+  const shareQuote = useCallback(() => {
+    if (!toolbar || !onShareQuote) return
+    const covering = highlights.find((h) => h.k === "hl" && h.s < toolbar.end && h.e > toolbar.start)
+    const quoteText = text.slice(Math.max(0, toolbar.start), Math.min(text.length, toolbar.end)).trim().slice(0, 160)
+    if (!quoteText) return
+    onShareQuote({ text: quoteText, c: covering?.c || "y" })
+    window.getSelection()?.removeAllRanges()
+    setToolbar(null)
+  }, [toolbar, onShareQuote, highlights, text])
 
   const startNewNote = useCallback(() => {
     if (!toolbar) return
@@ -481,6 +493,12 @@ const SourceHighlighter = ({ text, highlights: realHighlights, onChange, showMar
               <MessageSquarePlus className="w-4 h-4 text-primary" />
               批註
             </button>
+            {onShareQuote && (
+              <button onClick={shareQuote} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm hover:bg-muted">
+                <Send className="w-4 h-4 text-primary" />
+                貼文
+              </button>
+            )}
             {toolbar.hasStyle && (
               <button onClick={() => applyStyle("erase")} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm text-muted-foreground hover:bg-muted">
                 <Eraser className="w-4 h-4" />

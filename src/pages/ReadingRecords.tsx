@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom"
 import { selfize, selfizeUser, type Book, type ReadingRecord, type Highlight } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
-import SourceHighlighter from "@/components/SourceHighlighter"
+import SourceHighlighter, { HL_CATEGORIES } from "@/components/SourceHighlighter"
+import type { HighlightColor } from "@/lib/selfize"
 import { ArrowLeft, Plus, Loader2, BookOpen, MessageCircleQuestion, Trash2, LogIn, ChevronDown, ChevronUp, Sparkles, Globe, Lock, Eye, EyeOff, Library } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
@@ -18,6 +19,9 @@ const ReadingRecords = () => {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [hideMarks, setHideMarks] = useState(false) // 展演模式：先給大家看乾淨原文
+  const [shareQuote, setShareQuote] = useState<{ rec: ReadingRecord; quote: { text: string; c: HighlightColor } } | null>(null)
+  const [shareText, setShareText] = useState("")
+  const [sharing, setSharing] = useState(false)
 
   const cacheKey = user ? `hb_records_cache_${user.id}` : null
 
@@ -110,6 +114,30 @@ const ReadingRecords = () => {
         likes: [],
       })
     } catch {}
+  }
+
+  const handleShare = async () => {
+    if (!profile || !shareQuote) return
+    setSharing(true)
+    try {
+      const book = books[shareQuote.rec.book_id]
+      await selfize.create("posts", {
+        user_id: profile.id,
+        text: shareText.trim() || `《${book?.title || "一本書"}》的這段，分享給大家`,
+        book_id: shareQuote.rec.book_id,
+        book_title: book?.title || null,
+        book_cover: book?.cover_url || null,
+        quote: shareQuote.quote,
+        kind: "post",
+        likes: [],
+      })
+      toast.success("已發到動態！")
+      setShareQuote(null)
+    } catch (error) {
+      toast.error("發布失敗，再試一次")
+    } finally {
+      setSharing(false)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -235,6 +263,10 @@ const ReadingRecords = () => {
                           highlights={rec.highlights || []}
                           onChange={(next) => handleHighlights(rec, next)}
                           showMarks={!hideMarks}
+                          onShareQuote={(q) => {
+                            setShareQuote({ rec, quote: q })
+                            setShareText("")
+                          }}
                         />
                       </div>
                     ) : null}
@@ -285,6 +317,33 @@ const ReadingRecords = () => {
           </div>
         )}
       </div>
+      {/* 劃線發成貼文 */}
+      {shareQuote && (
+        <>
+          <div className="fixed inset-0 z-[70] bg-black/50" onClick={() => setShareQuote(null)} />
+          <div className="fixed z-[80] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-card border border-border rounded-2xl p-4 shadow-2xl">
+            <p className="font-semibold mb-2">發成貼文</p>
+            <blockquote className={`text-sm rounded-md px-3 py-2 mb-3 ${HL_CATEGORIES[shareQuote.quote.c]?.mark || "bg-muted"}`}>
+              「{shareQuote.quote.text}」
+            </blockquote>
+            <textarea
+              value={shareText}
+              onChange={(e) => setShareText(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="配一句你的話（你的想法才是貼文的主角）"
+              className="w-full text-sm rounded-md border border-input bg-background p-2 resize-none"
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <Button variant="outline" size="sm" onClick={() => setShareQuote(null)}>取消</Button>
+              <Button size="sm" onClick={handleShare} disabled={sharing}>
+                {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : "發布"}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+
       <Navigation />
     </div>
   )

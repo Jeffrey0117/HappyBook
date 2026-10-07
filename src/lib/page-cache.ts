@@ -2,7 +2,7 @@
  * 頁面資料快取：localStorage 存上次成功載入的資料，
  * 進頁面先秒出快取內容、背景再抓最新，消滅「等待＋跳版」。
  */
-const PREFIX = "hbc1_" // 換版本號可讓舊快取全部失效
+const PREFIX = "hbc2_" // 換版本號可讓舊快取全部失效
 
 export function readCache<T>(key: string): T | null {
   try {

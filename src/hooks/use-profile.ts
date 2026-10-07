@@ -67,7 +67,7 @@ export function useProfile() {
     }
   }
 
-  const updateProfile = useCallback(async (data: Partial<Pick<Profile, 'contact_type' | 'contact_id' | 'city' | 'bio' | 'location'>>) => {
+  const updateProfile = useCallback(async (data: Partial<Pick<Profile, 'contact_type' | 'contact_id' | 'city' | 'bio' | 'location' | 'ig' | 'avatar_url'>>) => {
     const current = profile
     if (!current) throw new Error('Profile not loaded')
     const updated = await selfize.update<Profile>('profiles', current.id, data)

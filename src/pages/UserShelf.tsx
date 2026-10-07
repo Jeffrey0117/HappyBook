@@ -6,9 +6,11 @@ import Navigation from "@/components/Navigation"
 import UserMenu from "@/components/UserMenu"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
-import { ArrowLeft, BookOpen, NotebookPen, Instagram } from "lucide-react"
+import { ArrowLeft, BookOpen, NotebookPen, Instagram, UserPlus, UserCheck, User } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useGameStats } from "@/hooks/use-game-stats"
 import { useAuth } from "@/hooks/use-auth"
+import { useProfile } from "@/hooks/use-profile"
 import { readCache, writeCache } from "@/lib/page-cache"
 
 const UserShelf = () => {
@@ -19,8 +21,89 @@ const UserShelf = () => {
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({}) // book_id → 公開筆記數
   const [reviews, setReviews] = useState<Review[]>([])
   const { user } = useAuth()
+  const { profile: myProfile } = useProfile()
   const [loading, setLoading] = useState(true)
   const stats = useGameStats(id)
+  const isSelf = !!myProfile && myProfile.id === id
+  const [followerTotal, setFollowerTotal] = useState(0)
+  const [myFollowId, setMyFollowId] = useState<string | null>(null)
+  const [followBusy, setFollowBusy] = useState(false)
+  const [visitTotal, setVisitTotal] = useState(0)
+  const [visitors, setVisitors] = useState<{ id: string; name: string; avatar: string | null }[]>([])
+
+  // 追蹤狀態＋粉絲數
+  useEffect(() => {
+    if (!id) return
+    selfize
+      .list<{ id: string; follower_id: string }>("follows", { following_id: id, limit: "500" })
+      .then(({ items, total }) => {
+        setFollowerTotal(total)
+        if (myProfile) {
+          const mine = items.find((f) => f.follower_id === myProfile.id)
+          setMyFollowId(mine?.id || null)
+        }
+      })
+      .catch(() => {})
+  }, [id, myProfile?.id])
+
+  // 誰來我家：登入訪客留下足跡（每個瀏覽器 session 記一次），再撈最近訪客
+  useEffect(() => {
+    if (!id) return
+    const run = async () => {
+      try {
+        const key = `hb_visited_${id}`
+        if (!sessionStorage.getItem(key) && myProfile && myProfile.id !== id) {
+          sessionStorage.setItem(key, "1")
+          await selfize.create("visits", {
+            host_id: id,
+            visitor_id: myProfile.id,
+            visitor_name: myProfile.display_name,
+            visitor_avatar: myProfile.avatar_url,
+          })
+        }
+      } catch {}
+      try {
+        const { items, total } = await selfize.list<{ visitor_id: string | null; visitor_name: string | null; visitor_avatar: string | null }>(
+          "visits",
+          { host_id: id, sort: "-created_at", limit: "50" }
+        )
+        setVisitTotal(total)
+        const seen = new Set<string>()
+        const vs: { id: string; name: string; avatar: string | null }[] = []
+        for (const v of items) {
+          if (!v.visitor_id || seen.has(v.visitor_id) || v.visitor_id === id) continue
+          seen.add(v.visitor_id)
+          vs.push({ id: v.visitor_id, name: v.visitor_name || "讀者", avatar: v.visitor_avatar })
+          if (vs.length >= 8) break
+        }
+        setVisitors(vs)
+      } catch {}
+    }
+    run()
+  }, [id, myProfile?.id])
+
+  const toggleFollow = async () => {
+    if (!myProfile || !id || followBusy) return
+    setFollowBusy(true)
+    try {
+      if (myFollowId) {
+        await selfize.delete("follows", myFollowId)
+        setMyFollowId(null)
+        setFollowerTotal((n) => Math.max(0, n - 1))
+      } else {
+        const created = await selfize.create<{ id: string }>("follows", {
+          follower_id: myProfile.id,
+          following_id: id,
+        })
+        setMyFollowId(created.id)
+        setFollowerTotal((n) => n + 1)
+      }
+    } catch (error) {
+      // 失敗就維持原狀
+    } finally {
+      setFollowBusy(false)
+    }
+  }
 
   useEffect(() => {
     // 快取先上（秒出），背景再抓最新
@@ -184,6 +267,60 @@ const UserShelf = () => {
                 ? <div className="h-56 bg-muted animate-pulse rounded-xl" />
                 : <ProfileCard profile={profile} stats={stats} />
             )}
+
+            {/* 追蹤 */}
+            {!isSelf && myProfile && (
+              <Button
+                className="w-full"
+                variant={myFollowId ? "outline" : "default"}
+                onClick={toggleFollow}
+                disabled={followBusy}
+              >
+                {myFollowId ? (
+                  <><UserCheck className="w-4 h-4 mr-2" />追蹤中</>
+                ) : (
+                  <><UserPlus className="w-4 h-4 mr-2" />追蹤</>
+                )}
+              </Button>
+            )}
+
+            <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-around text-center">
+              <div>
+                <p className="text-xl font-bold">{followerTotal}</p>
+                <p className="text-xs text-muted-foreground">粉絲</p>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div>
+                <p className="text-xl font-bold">{visitTotal}</p>
+                <p className="text-xs text-muted-foreground">來訪人次</p>
+              </div>
+            </div>
+
+            {/* 誰來我家（無名小站魂） */}
+            <div className="bg-card border border-border rounded-xl p-4">
+              <p className="text-sm font-medium mb-3">👀 誰來我家</p>
+              {visitors.length === 0 ? (
+                <p className="text-xs text-muted-foreground">還沒有訪客，把連結傳出去吧</p>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {visitors.map((v) => (
+                    <Link key={v.id} to={`/user/${v.id}`} className="flex flex-col items-center w-14">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={v.avatar || undefined} />
+                        <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                      </Avatar>
+                      <span className="text-[10px] text-muted-foreground truncate max-w-full mt-1">{v.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4 text-center">
+                <span className="inline-block bg-neutral-950 text-lime-400 font-mono text-lg tracking-[0.25em] pl-2 pr-0.5 py-1 rounded border border-lime-500/40">
+                  {String(visitTotal).padStart(6, "0")}
+                </span>
+                <p className="text-[10px] text-muted-foreground mt-1.5">老派來訪計數器，向無名致敬</p>
+              </div>
+            </div>
 
             {profile?.ig && (
               <a

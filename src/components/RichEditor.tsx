@@ -4,7 +4,7 @@ import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Markdown } from "tiptap-markdown"
-import { Bold, Italic, Quote, List, ListOrdered, Heading2, Heading3 } from "lucide-react"
+import { Bold, Italic, Quote, List, ListOrdered } from "lucide-react"
 
 interface RichEditorProps {
   value: string
@@ -50,15 +50,57 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
   const btn = (active: boolean) =>
     `p-1.5 rounded-md transition-colors ${active ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`
 
+  /**
+   * 字級只作用在「選到的那一行」：段落裡有軟換行時，
+   * 先把選取行前後的換行切成段落邊界，再 toggle 標題，
+   * 不然整個段落會一起變大。
+   */
+  const toggleLineHeading = (level: 2 | 3) => {
+    editor
+      .chain()
+      .focus()
+      .command(({ tr, state }) => {
+        const { $from, $to } = state.selection
+        if ($from.parent !== $to.parent) return true
+        const parent = $from.parent
+        if (parent.type.name !== "paragraph") return true
+        const start = $from.start()
+        let prevBr = -1
+        let nextBr = -1
+        parent.forEach((node, offset) => {
+          const pos = start + offset
+          if (node.type.name === "hardBreak") {
+            if (pos + 1 <= $from.pos && pos > prevBr) prevBr = pos
+            if (pos >= $to.pos && nextBr === -1) nextBr = pos
+          }
+        })
+        // 先切後面的（位置才不會被前面的操作位移）
+        if (nextBr !== -1) {
+          tr.delete(nextBr, nextBr + 1)
+          tr.split(nextBr)
+        }
+        if (prevBr !== -1) {
+          tr.delete(prevBr, prevBr + 1)
+          tr.split(prevBr)
+        }
+        return true
+      })
+      .toggleHeading({ level })
+      .run()
+  }
+
+  const BigT = <span className="font-bold text-base leading-none">T</span>
+  const SmallT = <span className="font-bold text-[11px] leading-none">T</span>
+
   return (
     <div className="border border-input rounded-md bg-background">
       {/* 固定工具列：區塊層級 */}
       <div className="flex items-center gap-0.5 border-b border-border px-2 py-1.5 flex-wrap">
-        <button type="button" title="大標題" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btn(editor.isActive("heading", { level: 2 }))}>
-          <Heading2 className="w-4 h-4" />
+        <button type="button" title="大字" onClick={() => toggleLineHeading(2)} className={`${btn(editor.isActive("heading", { level: 2 }))} w-8 h-8 flex items-center justify-center`}>
+          {BigT}
         </button>
-        <button type="button" title="小標題" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={btn(editor.isActive("heading", { level: 3 }))}>
-          <Heading3 className="w-4 h-4" />
+        <button type="button" title="小字" onClick={() => toggleLineHeading(3)} className={`${btn(editor.isActive("heading", { level: 3 }))} w-8 h-8 flex items-center justify-center`}>
+          {SmallT}
         </button>
         <div className="w-px h-5 bg-border mx-1" />
         <button type="button" title="粗體" onClick={() => editor.chain().focus().toggleBold().run()} className={btn(editor.isActive("bold"))}>
@@ -81,11 +123,11 @@ const RichEditor = ({ value, onChange, placeholder }: RichEditorProps) => {
       {/* Medium 式選取浮動工具列 */}
       <BubbleMenu editor={editor}>
         <div className="flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-lg px-1 py-1">
-          <button type="button" title="大標題" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btn(editor.isActive("heading", { level: 2 }))}>
-            <Heading2 className="w-4 h-4" />
+          <button type="button" title="大字" onClick={() => toggleLineHeading(2)} className={`${btn(editor.isActive("heading", { level: 2 }))} w-8 h-8 flex items-center justify-center`}>
+            {BigT}
           </button>
-          <button type="button" title="小標題" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={btn(editor.isActive("heading", { level: 3 }))}>
-            <Heading3 className="w-4 h-4" />
+          <button type="button" title="小字" onClick={() => toggleLineHeading(3)} className={`${btn(editor.isActive("heading", { level: 3 }))} w-8 h-8 flex items-center justify-center`}>
+            {SmallT}
           </button>
           <div className="w-px h-5 bg-border mx-0.5" />
           <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btn(editor.isActive("bold"))}>

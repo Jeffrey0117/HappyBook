@@ -9,9 +9,14 @@ import { User, LogOut, BookOpen, NotebookPen, Library, UserCircle } from "lucide
 /** 全站共用的右上角會員選單：頭像 → 下拉；未登入 → 登入鈕 */
 const UserMenu = () => {
   const navigate = useNavigate()
-  const { user, isAuthenticated, login, logout } = useAuth()
+  const { user, isAuthenticated, isReady, login, logout } = useAuth()
   const { profile } = useProfile()
   const [open, setOpen] = useState(false)
+
+  // SDK 還沒就緒：放同尺寸佔位圓，避免「登入 → 頭像」閃變跳動
+  if (!isAuthenticated && !isReady) {
+    return <div className="h-9 w-9 rounded-full bg-muted animate-pulse shrink-0" />
+  }
 
   if (!isAuthenticated) {
     return (

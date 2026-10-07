@@ -528,7 +528,7 @@ const BookDetail = () => {
                   <img
                     src={coverUrl}
                     alt={decodedTitle}
-                    className="w-32 mx-auto rounded-lg shadow-md mb-3"
+                    className="w-32 aspect-[2/3] object-cover mx-auto rounded-lg shadow-md mb-3"
                   />
                 ) : (
                   <div className="w-32 h-44 mx-auto bg-muted rounded-lg flex items-center justify-center mb-3">

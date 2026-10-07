@@ -229,7 +229,7 @@ const Browse = () => {
                     <img
                       src={featured.cover_url}
                       alt={featured.title}
-                      className="w-28 sm:w-40 rounded-lg shadow-2xl shrink-0 transition-transform duration-300 group-hover:scale-[1.03]"
+                      className="w-28 sm:w-40 aspect-[2/3] object-cover rounded-lg shadow-2xl shrink-0 transition-transform duration-300 group-hover:scale-[1.03]"
                     />
                   )}
                   <div className="min-w-0">

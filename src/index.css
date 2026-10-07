@@ -270,3 +270,8 @@ All colors MUST be HSL.
   max-width: 42rem;
   padding-right: 0.5rem;
 }
+
+/* 捲軸軌道永遠預留：內容載入變長時不會因捲軸出現而整頁左移 */
+html {
+  overflow-y: scroll;
+}

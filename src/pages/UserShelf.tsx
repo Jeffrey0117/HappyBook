@@ -181,7 +181,7 @@ const UserShelf = () => {
           <aside className="space-y-4">
             {profile && (
               stats.loading
-                ? <div className="h-44 bg-muted animate-pulse rounded-xl" />
+                ? <div className="h-56 bg-muted animate-pulse rounded-xl" />
                 : <ProfileCard profile={profile} stats={stats} />
             )}
 

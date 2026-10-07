@@ -152,7 +152,7 @@ const MyShelf = () => {
       <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
         {viewProfile && (
           stats.loading
-            ? <div className="h-44 bg-muted animate-pulse rounded-xl" />
+            ? <div className="h-56 bg-muted animate-pulse rounded-xl" />
             : <ProfileCard profile={viewProfile} stats={stats} />
         )}
 

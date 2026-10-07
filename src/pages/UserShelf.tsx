@@ -71,42 +71,49 @@ const UserShelf = () => {
         </div>
       </header>
 
-      <main className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
-        {profile && !stats.loading && (
-          <ProfileCard profile={profile} stats={stats} />
-        )}
-
-        {notedBooks.length > 0 && (
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-sm font-medium flex items-center gap-1.5 mb-2">
-              <NotebookPen className="w-4 h-4 text-primary" />
-              有閱讀筆記的書
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {notedBooks.map((b) => (
-                <Link
-                  key={b.id}
-                  to={`/book/${encodeURIComponent(b.title)}`}
-                  className="text-sm bg-muted hover:bg-primary/10 px-3 py-1.5 rounded-full transition-colors"
-                >
-                  《{b.title}》
-                  <span className="text-muted-foreground ml-1">{noteCounts[b.id]} 筆</span>
-                </Link>
-              ))}
-            </div>
+      <main className="max-w-screen-xl mx-auto px-4 py-6">
+        {/* 新聞版型：左大欄＝書櫃，右側欄＝個人小面板 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            {loading ? (
+              <div className="h-60 bg-muted animate-pulse rounded-xl" />
+            ) : books.length === 0 ? (
+              <div className="text-center py-16">
+                <BookOpen className="h-20 w-20 mx-auto text-muted-foreground/50" />
+                <p className="text-xl font-medium text-muted-foreground mt-4">這個人還沒上架任何書</p>
+              </div>
+            ) : (
+              <BookShelf books={books} />
+            )}
           </div>
-        )}
 
-        {loading ? (
-          <div className="h-60 bg-muted animate-pulse rounded-xl" />
-        ) : books.length === 0 ? (
-          <div className="text-center py-16">
-            <BookOpen className="h-20 w-20 mx-auto text-muted-foreground/50" />
-            <p className="text-xl font-medium text-muted-foreground mt-4">這個人還沒上架任何書</p>
-          </div>
-        ) : (
-          <BookShelf books={books} />
-        )}
+          <aside className="space-y-4">
+            {profile && !stats.loading && (
+              <ProfileCard profile={profile} stats={stats} />
+            )}
+
+            {notedBooks.length > 0 && (
+              <div className="bg-card border border-border rounded-xl p-4">
+                <p className="text-sm font-medium flex items-center gap-1.5 mb-2">
+                  <NotebookPen className="w-4 h-4 text-primary" />
+                  有閱讀筆記的書
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {notedBooks.map((b) => (
+                    <Link
+                      key={b.id}
+                      to={`/book/${encodeURIComponent(b.title)}`}
+                      className="text-sm bg-muted hover:bg-primary/10 px-3 py-2 rounded-lg transition-colors leading-snug"
+                    >
+                      《{b.title}》
+                      <span className="text-muted-foreground ml-1 whitespace-nowrap">{noteCounts[b.id]} 筆</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
       </main>
 
       <Navigation />

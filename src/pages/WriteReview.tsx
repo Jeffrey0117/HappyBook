@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import ReactMarkdown from "react-markdown"
+import { mdPreserveBreaks } from "@/lib/markdown"
 
 const WriteReview = () => {
   const { bookId } = useParams<{ bookId: string }>()
@@ -240,7 +241,7 @@ const WriteReview = () => {
             />
             <div className={`prose-review min-h-[320px] p-4 rounded-md border bg-card overflow-y-auto ${previewing ? "" : "hidden lg:block"}`}>
               {content.trim() ? (
-                <ReactMarkdown>{content.replace(/\n/g, "  \n")}</ReactMarkdown>
+                <ReactMarkdown>{mdPreserveBreaks(content)}</ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground italic">右邊會即時顯示排版後的樣子</p>
               )}

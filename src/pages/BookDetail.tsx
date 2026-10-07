@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
 import { readCache, writeCache } from "@/lib/page-cache"
+import { mdPreserveBreaks } from "@/lib/markdown"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { useMyBooks } from "@/hooks/use-my-books"
@@ -317,7 +318,7 @@ const BookDetail = () => {
                           </div>
                         </div>
                         <div className="prose-review text-sm">
-                          <ReactMarkdown>{review.content.replace(/\n/g, "  \n")}</ReactMarkdown>
+                          <ReactMarkdown>{mdPreserveBreaks(review.content)}</ReactMarkdown>
                         </div>
                       </CardContent>
                     </Card>
@@ -391,7 +392,8 @@ const BookDetail = () => {
                                 <Edit className="h-3 w-3 mr-1" />編輯
                               </Button>
                               <Button size="sm" variant="outline" onClick={() => navigate(`/my/review/${book.id}`)}>
-                                <FileText className="h-3 w-3 mr-1" />寫心得
+                                <FileText className="h-3 w-3 mr-1" />
+                                {reviews.some((r) => r.user_id === profile?.id) ? "編輯心得" : "寫心得"}
                               </Button>
                             </div>
                           ) : (

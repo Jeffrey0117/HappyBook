@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { selfize, type Book, type Profile, type Review } from "@/lib/selfize"
-import { Link } from "react-router-dom"
-import { plainExcerpt } from "@/lib/markdown"
+import ReviewListItem from "@/components/ReviewListItem"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import AppHeader from "@/components/AppHeader"
@@ -124,7 +123,6 @@ const MyShelf = () => {
   const viewReviews = freshLoaded ? reviews : cached?.reviews || []
   const shelfLoading = !freshLoaded && !cached
 
-  const excerptOf = (md: string) => plainExcerpt(md)
 
   const handleDelete = async (id: string) => {
     if (!confirm("確定要刪除這本書嗎？")) return
@@ -274,47 +272,14 @@ const MyShelf = () => {
           <section>
             <h2 className="text-lg font-bold mb-4">我的心得</h2>
             <div className="space-y-6">
-              {viewReviews.map((review) => {
-                const cover = viewBooks.find((b) => b.id === review.book_id)?.cover_url || null
-                return (
-                  <Link key={review.id} to={`/book/${encodeURIComponent(review.book_title)}`} className="block group">
-                    <div className="flex gap-4 items-start">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="text-xl font-bold group-hover:text-primary transition-colors leading-snug">
-                            {review.title || `《${review.book_title}》`}
-                          </h3>
-                          {review.rating === "up" && (
-                            <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/40 dark:text-green-400 px-2 py-0.5 rounded-full shrink-0">👍 推</span>
-                          )}
-                          {review.rating === "down" && (
-                            <span className="text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-400 px-2 py-0.5 rounded-full shrink-0">👎 倒讚</span>
-                          )}
-                        </div>
-                        {review.title && <p className="text-sm text-muted-foreground mb-1">《{review.book_title}》</p>}
-                        <p className="text-muted-foreground leading-relaxed line-clamp-3">{excerptOf(review.content)}</p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(review.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "short", day: "numeric" })}
-                          　·　閱讀全文 →
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              navigate(`/my/review/${review.book_id}`)
-                            }}
-                            className="ml-3 text-primary hover:underline"
-                          >
-                            編輯
-                          </button>
-                        </p>
-                      </div>
-                      {cover && (
-                        <img src={cover} alt={review.book_title} className="w-16 sm:w-20 aspect-[2/3] object-cover rounded-md border border-border shadow-sm shrink-0" />
-                      )}
-                    </div>
-                    <div className="border-b border-border mt-6" />
-                  </Link>
-                )
-              })}
+              {viewReviews.map((review) => (
+                <ReviewListItem
+                  key={review.id}
+                  review={review}
+                  cover={viewBooks.find((b) => b.id === review.book_id)?.cover_url || null}
+                  onEdit={() => navigate(`/my/review/${review.book_id}`)}
+                />
+              ))}
             </div>
           </section>
         )}

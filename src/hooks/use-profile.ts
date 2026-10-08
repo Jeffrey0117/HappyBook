@@ -35,15 +35,16 @@ export function useProfile() {
 
       if (items.length > 0) {
         const existing = items[0]
-        // LetMeUse 沒頭貼時不要把自訂的 avatar_url 洗成 null
+        // 名稱與頭像以使用者在站內自訂的為準，不被 LetMeUse 回寫蓋掉；
+        // 只在欄位還是空的時候才從登入系統補
         const needsUpdate =
-          existing.display_name !== user.displayName ||
-          (!!user.avatar && existing.avatar_url !== user.avatar)
+          (!existing.display_name && !!user.displayName) ||
+          (!existing.avatar_url && !!user.avatar)
 
         if (needsUpdate) {
           const updated = await selfize.update<Profile>('profiles', existing.id, {
-            display_name: user.displayName,
-            ...(user.avatar ? { avatar_url: user.avatar } : {}),
+            ...(!existing.display_name && user.displayName ? { display_name: user.displayName } : {}),
+            ...(!existing.avatar_url && user.avatar ? { avatar_url: user.avatar } : {}),
           })
           setProfile(updated)
           writeCache(`profile_${user.id}`, updated)
@@ -67,7 +68,7 @@ export function useProfile() {
     }
   }
 
-  const updateProfile = useCallback(async (data: Partial<Pick<Profile, 'contact_type' | 'contact_id' | 'city' | 'bio' | 'location' | 'ig' | 'avatar_url' | 'music_url' | 'music_title'>>) => {
+  const updateProfile = useCallback(async (data: Partial<Pick<Profile, 'display_name' | 'contact_type' | 'contact_id' | 'city' | 'bio' | 'location' | 'ig' | 'avatar_url' | 'music_url' | 'music_title'>>) => {
     const current = profile
     if (!current) throw new Error('Profile not loaded')
     const updated = await selfize.update<Profile>('profiles', current.id, data)

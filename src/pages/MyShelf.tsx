@@ -28,7 +28,7 @@ const MyShelf = () => {
   const [freshLoaded, setFreshLoaded] = useState(false)
   const [cached, setCached] = useState<{ profile: Profile; books: Book[]; reviews?: Review[] } | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ bio: "", city: "", ig: "", avatar_url: "", contact_type: "" as "" | "ig" | "line", contact_id: "" })
+  const [editForm, setEditForm] = useState({ display_name: "", bio: "", city: "", ig: "", avatar_url: "", contact_type: "" as "" | "ig" | "line", contact_id: "" })
   const [savingProfile, setSavingProfile] = useState(false)
 
   const cacheKey = user ? `hb_myshelf_cache_${user.id}` : null
@@ -81,6 +81,7 @@ const MyShelf = () => {
   const openEdit = () => {
     const p = profile || cached?.profile
     setEditForm({
+      display_name: p?.display_name || "",
       bio: p?.bio || "",
       city: p?.city || "",
       ig: p?.ig || "",
@@ -94,7 +95,13 @@ const MyShelf = () => {
   const saveProfile = async () => {
     setSavingProfile(true)
     try {
+      if (!editForm.display_name.trim()) {
+        toast.error("名稱不能空白")
+        setSavingProfile(false)
+        return
+      }
       await updateProfile({
+        display_name: editForm.display_name.trim(),
         bio: editForm.bio.trim() || null,
         city: editForm.city.trim() || null,
         ig: editForm.ig.trim().replace(/^@/, "") || null,
@@ -326,6 +333,15 @@ const MyShelf = () => {
           <div className="fixed z-[80] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md max-h-[85vh] overflow-y-auto bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
             <h2 className="font-bold text-lg">編輯個人資料</h2>
             <div>
+              <label className="text-sm font-medium">顯示名稱</label>
+              <input
+                value={editForm.display_name}
+                onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                className="mt-1 w-full h-10 text-base font-medium rounded-md border border-input bg-background px-3"
+                placeholder="大家看到的名字"
+              />
+            </div>
+            <div>
               <label className="text-sm font-medium">自我介紹</label>
               <textarea
                 value={editForm.bio}
@@ -357,12 +373,25 @@ const MyShelf = () => {
             </div>
             <div>
               <label className="text-sm font-medium">頭像網址</label>
-              <input
-                value={editForm.avatar_url}
-                onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
-                className="mt-1 w-full h-9 text-sm rounded-md border border-input bg-background px-2"
-                placeholder="https://…"
-              />
+              <div className="mt-1 flex items-center gap-3">
+                {editForm.avatar_url ? (
+                  <img
+                    src={editForm.avatar_url}
+                    alt="頭像預覽"
+                    className="w-12 h-12 rounded-full object-cover border border-border shrink-0"
+                    onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.3")}
+                    onLoad={(e) => ((e.target as HTMLImageElement).style.opacity = "1")}
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-muted border border-border shrink-0" />
+                )}
+                <input
+                  value={editForm.avatar_url}
+                  onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
+                  className="flex-1 h-9 text-sm rounded-md border border-input bg-background px-2"
+                  placeholder="貼圖片網址，左邊會即時預覽"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

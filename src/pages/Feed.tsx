@@ -8,6 +8,7 @@ import Navigation from "@/components/Navigation"
 import AppHeader from "@/components/AppHeader"
 import { HL_CATEGORIES } from "@/components/SourceHighlighter"
 import { readCache, writeCache } from "@/lib/page-cache"
+import { notify } from "@/lib/notify"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { Heart, User, BookOpen, Loader2, PenLine, NotebookPen, MessageCircle, Pencil, Trash2 } from "lucide-react"
@@ -179,6 +180,14 @@ const Feed = () => {
         kind: "post",
         likes: [],
       })
+      notify({
+        user_id: post.user_id,
+        actor_id: profile.id,
+        kind: "reply_post",
+        ref_id: post.id,
+        ref_title: post.text.slice(0, 40),
+        link: "/reviews",
+      })
       setReplyText("")
       fetchPosts()
     } catch (error) {
@@ -237,6 +246,16 @@ const Feed = () => {
     setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, likes: next } : p)))
     try {
       await selfize.update("posts", post.id, { likes: next })
+      if (!liked) {
+        notify({
+          user_id: post.user_id,
+          actor_id: profile.id,
+          kind: "like_post",
+          ref_id: post.id,
+          ref_title: post.text.slice(0, 40),
+          link: "/reviews",
+        })
+      }
     } catch (error) {
       // 失敗就讓下次 fetch 校正
     }
@@ -245,6 +264,19 @@ const Feed = () => {
   const topPosts = posts.filter((p) => !p.reply_to)
   const repliesOf = (id: string) =>
     posts.filter((p) => p.reply_to === id).sort((a, b) => a.created_at.localeCompare(b.created_at))
+
+  // 還沒人回應的貼文：給熱心人一個「去開張」的入口（冷啟動的氧氣供給線）
+  const lonelyPosts = topPosts
+    .filter((p) => repliesOf(p.id).length === 0 && (p.likes || []).length === 0)
+    .slice(0, 5)
+
+  const jumpToPost = (postId: string) => {
+    setOpenReplies(postId)
+    setReplyText("")
+    setTimeout(() => {
+      document.getElementById(`post-${postId}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+    }, 80)
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -302,6 +334,25 @@ const Feed = () => {
           </div>
         )}
 
+        {/* 等人開張：還沒人回應的貼文 */}
+        {!loading && lonelyPosts.length > 0 && topPosts.length > 1 && (
+          <div className="mb-4 bg-card border border-dashed border-primary/40 rounded-xl p-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2">🆕 還沒人回應，去幫他開張</p>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              {lonelyPosts.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => jumpToPost(p.id)}
+                  className="shrink-0 max-w-[200px] text-left text-xs bg-muted hover:bg-primary/10 rounded-lg px-3 py-2 transition-colors"
+                >
+                  <span className="font-medium">{p.user_id_expanded?.display_name || "讀者"}</span>
+                  <span className="text-muted-foreground">：{p.text.slice(0, 24)}…</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Feed */}
         {loading ? (
           <div className="space-y-4">
@@ -323,7 +374,7 @@ const Feed = () => {
               const replies = repliesOf(post.id)
               const repliesOpen = openReplies === post.id
               return (
-                <article key={post.id} className="bg-card border border-border rounded-xl p-4">
+                <article key={post.id} id={`post-${post.id}`} className="bg-card border border-border rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Link to={`/user/${post.user_id}`} className="shrink-0">
                       <Avatar className="h-8 w-8">

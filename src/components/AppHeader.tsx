@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import UserMenu from "@/components/UserMenu"
+import NotificationBell from "@/components/NotificationBell"
 
 /**
  * 全站統一頂欄：左 LOGO＋品牌（回首頁）、中間放各頁自己的內容
@@ -14,6 +15,7 @@ const AppHeader = ({ children }: { children?: React.ReactNode }) => {
           <span className="font-bold whitespace-nowrap hidden sm:inline">換書不可</span>
         </Link>
         <div className="flex-1 min-w-0 flex items-center gap-3">{children}</div>
+        <NotificationBell />
         <UserMenu />
       </div>
     </header>

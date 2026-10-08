@@ -4,6 +4,8 @@ import { selfize, type Profile, type Book, type Review } from "@/lib/selfize"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import UserMenu from "@/components/UserMenu"
+import NotificationBell from "@/components/NotificationBell"
+import { notify } from "@/lib/notify"
 import BookShelf from "@/components/BookShelf"
 import ProfileCard from "@/components/ProfileCard"
 import { ArrowLeft, BookOpen, NotebookPen, Instagram, UserPlus, UserCheck, User } from "lucide-react"
@@ -109,6 +111,12 @@ const UserShelf = () => {
         })
         setMyFollowId(created.id)
         setFollowerTotal((n) => n + 1)
+        notify({
+          user_id: id,
+          actor_id: myProfile.id,
+          kind: "follow",
+          link: `/user/${myProfile.id}`,
+        })
       }
     } catch (error) {
       // 失敗就維持原狀
@@ -188,6 +196,7 @@ const UserShelf = () => {
           <h1 className="text-lg sm:text-xl font-bold truncate flex-1">
             {profile ? `${profile.display_name} 的書架` : "書架"}
           </h1>
+          <NotificationBell />
           <UserMenu />
         </div>
       </header>

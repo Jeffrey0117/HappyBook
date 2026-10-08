@@ -26,6 +26,8 @@ import {
 } from "lucide-react"
 import PublicRecordCard, { type PublicRecord } from "@/components/PublicRecordCard"
 import UserMenu from "@/components/UserMenu"
+import NotificationBell from "@/components/NotificationBell"
+import { notify } from "@/lib/notify"
 import { readCache, writeCache } from "@/lib/page-cache"
 import { mdPreserveBreaks, reviewRehypePlugins } from "@/lib/markdown"
 import { useAuth } from "@/hooks/use-auth"
@@ -162,6 +164,16 @@ const BookDetail = () => {
     setReviews((prev) => prev.map((r) => (r.id === review.id ? { ...r, likes: next } : r)))
     try {
       await selfize.update("reviews", review.id, { likes: next })
+      if (!liked) {
+        notify({
+          user_id: review.user_id,
+          actor_id: profile.id,
+          kind: "like_review",
+          ref_id: review.id,
+          ref_title: review.title || `《${review.book_title}》`,
+          link: `/book/${encodeURIComponent(review.book_title)}`,
+        })
+      }
     } catch (error) {
       // 失敗讓下次 fetch 校正
     }
@@ -203,6 +215,14 @@ const BookDetail = () => {
         [review.id]: [...(prev[review.id] || []), { ...created, user_id_expanded: profile }],
       }))
       setCommentText("")
+      notify({
+        user_id: review.user_id,
+        actor_id: profile.id,
+        kind: "comment_review",
+        ref_id: review.id,
+        ref_title: review.title || `《${review.book_title}》`,
+        link: `/book/${encodeURIComponent(review.book_title)}`,
+      })
     } catch (error) {
       toast.error("留言失敗，再試一次")
     } finally {
@@ -279,6 +299,7 @@ const BookDetail = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-xl font-bold truncate flex-1">{decodedTitle}</h1>
+            <NotificationBell />
             <UserMenu />
           </div>
         </div>

@@ -251,6 +251,27 @@ export interface ReviewCommentExpanded extends ReviewComment {
   user_id_expanded?: Profile
 }
 
+// --- Notification types ---
+
+export type NotificationKind = 'like_review' | 'comment_review' | 'like_post' | 'reply_post' | 'follow'
+
+export interface AppNotification {
+  id: string
+  user_id: string
+  actor_id: string
+  kind: NotificationKind
+  ref_id: string | null
+  ref_title: string | null
+  link: string | null
+  read: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AppNotificationExpanded extends AppNotification {
+  actor_id_expanded?: Profile
+}
+
 export interface ReviewExpanded extends Review {
   user_id_expanded?: Profile
 }

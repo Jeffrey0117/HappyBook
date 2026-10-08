@@ -36,6 +36,17 @@ export function mdFromEditor(md: string): string {
     .replace(new RegExp("\\n\\n(?:" + NBSP + "|&nbsp;)(?=\\n|$)", "g"), "\n")
 }
 
+/** 純文字摘要：剝掉 HTML 標籤 + Markdown 記號，串成一段（給卡片預覽用） */
+export function plainExcerpt(md: string, max = 160): string {
+  return md
+    .replace(/<[^>]*>/g, "") // HTML 標籤（文字顏色的 span 等）
+    .split("\n")
+    .map((l) => l.replace(/^[#>\-*\s]+/, "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, max)
+}
+
 export function mdPreserveBreaks(md: string): string {
   return md
     .replace(/\\\n/g, "\n") // TipTap 序列化的反斜線硬斷行 → 一般換行（避免跟兩空格斷行打架變成字面 \）

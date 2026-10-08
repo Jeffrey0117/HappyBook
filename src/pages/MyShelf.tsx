@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { selfize, type Book, type Profile, type Review } from "@/lib/selfize"
 import { Link } from "react-router-dom"
+import { plainExcerpt } from "@/lib/markdown"
 import { Button } from "@/components/ui/button"
 import Navigation from "@/components/Navigation"
 import AppHeader from "@/components/AppHeader"
@@ -123,14 +124,7 @@ const MyShelf = () => {
   const viewReviews = freshLoaded ? reviews : cached?.reviews || []
   const shelfLoading = !freshLoaded && !cached
 
-  // 心得摘要：去掉 markdown 記號
-  const excerptOf = (md: string) =>
-    md
-      .split("\n")
-      .map((l) => l.replace(/^[#>\-*\s]+/, "").trim())
-      .filter(Boolean)
-      .join(" ")
-      .slice(0, 160)
+  const excerptOf = (md: string) => plainExcerpt(md)
 
   const handleDelete = async (id: string) => {
     if (!confirm("確定要刪除這本書嗎？")) return

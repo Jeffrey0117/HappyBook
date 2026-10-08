@@ -14,6 +14,7 @@ import { useGameStats } from "@/hooks/use-game-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { useProfile } from "@/hooks/use-profile"
 import { readCache, writeCache } from "@/lib/page-cache"
+import { plainExcerpt } from "@/lib/markdown"
 
 const UserShelf = () => {
   const { id } = useParams()
@@ -158,14 +159,7 @@ const UserShelf = () => {
     }
   }
 
-  // Medium 風格摘要：去掉 markdown 記號、串成一段
-  const excerptOf = (md: string) =>
-    md
-      .split("\n")
-      .map((l) => l.replace(/^[#>\-*\s]+/, "").trim())
-      .filter(Boolean)
-      .join(" ")
-      .slice(0, 160)
+  const excerptOf = (md: string) => plainExcerpt(md)
 
   const fetchNoteCounts = async (userId: string): Promise<Record<string, number>> => {
     try {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { selfize, type Book, type Review } from "@/lib/selfize"
+import { selfize, type Book, type Review, type ReviewExpanded } from "@/lib/selfize"
 import RichEditor from "@/components/RichEditor"
 import { readCache, writeCache } from "@/lib/page-cache"
 import { Button } from "@/components/ui/button"
@@ -150,6 +150,10 @@ const WriteReview = () => {
           })
         } catch {}
         writeCache(`wr_rev_${profile.id}_${bookId}`, created)
+        // 書籍頁快取直寫：發表完跳回去第一幀就看得到，不靠背景重抓
+        const rc = readCache<ReviewExpanded[]>(`book_${book.title}_reviews`) || []
+        const expanded: ReviewExpanded = { ...created, user_id_expanded: profile }
+        writeCache(`book_${book.title}_reviews`, [expanded, ...rc.filter((r) => r.id !== created.id)])
         toast.success("心得已發表")
       }
       navigate(`/book/${encodeURIComponent(book.title)}`)
